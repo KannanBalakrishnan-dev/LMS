@@ -1,0 +1,25 @@
+{
+  "short_name": "VDart Academy",
+  "name": "VDart Academy - Online Learning Platform",
+  "icons": [
+    {
+      "src": "vdart-favicon.png",
+      "sizes": "256x174",
+      "type": "image/png"
+    },
+    {
+      "src": "vdart-favicon.png",
+      "type": "image/png",
+      "sizes": "256x174"
+    },
+    {
+      "src": "vdart-favicon.png",
+      "type": "image/png",
+      "sizes": "256x174"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#1f2167",
+  "background_color": "#ffffff"
+}

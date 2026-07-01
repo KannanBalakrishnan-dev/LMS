@@ -1,0 +1,87 @@
+.App {
+  text-align: center;
+}
+
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Login/Register Modern Styles */
+.login-root, .register-root {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #3a3456 0%, #5e4b8b 100%);
+}
+
+.login-left, .register-left {
+  width: 45%;
+  min-height: 540px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  background: linear-gradient(135deg, #4e4376 0%, #2b5876 100%);
+  border-radius: 24px 0 0 24px;
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.18);
+  padding: 2rem;
+  position: relative;
+}
+
+.login-right, .register-right {
+  width: 55%;
+  min-height: 540px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(30, 30, 40, 0.98);
+  border-radius: 0 24px 24px 0;
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.18);
+  padding: 3rem 4rem;
+}
+
+@media (max-width: 900px) {
+  .login-left, .register-left {
+    display: none;
+  }
+  .login-right, .register-right {
+    width: 100%;
+    border-radius: 0;
+    min-height: 100vh;
+    padding: 2rem 1rem;
+  }
+}

@@ -1,0 +1,14 @@
+# Python/Django local artifacts
+__pycache__/
+*.py[cod]
+*.sqlite3
+*.log
+*.bak
+
+# Local environment secrets
+.env
+lms_project/.env
+
+# User/runtime uploads
+lms_project/media/certificate_templates/
+lms_project/media/generated_certificates/
