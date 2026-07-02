@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Grid,
   Paper,
@@ -53,6 +54,36 @@ const DEMO_STATS = {
   completionRate: 62,
   recentEnrollments: [],
   recentCompletions: [],
+};
+
+// ---- motion-wrapped MUI primitives (Framer Motion needs a DOM-writable component) ----
+const MotionCard = motion(Card);
+const MotionPaper = motion(Paper);
+const MotionBox = motion(Box);
+
+// ---- animation variants, defined once and reused everywhere ----
+// Parent sets initial="hidden" animate="visible"; children just declare the
+// same variant names and Framer Motion staggers them automatically.
+const containerStagger = {
+  hidden: {},
+  visible: {
+    transition: { staggerChildren: 0.08, delayChildren: 0.05 },
+  },
+};
+
+const cardEnter = {
+  hidden: { opacity: 0, y: 16 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] }, // easeOutExpo-ish, feels "smooth"
+  },
+};
+
+const listItemEnter = {
+  hidden: { opacity: 0, x: -12 },
+  visible: { opacity: 1, x: 0, transition: { duration: 0.3, ease: 'easeOut' } },
+  exit: { opacity: 0, x: 12, transition: { duration: 0.2 } },
 };
 
 // ---- tiny inline sparkline (no chart library dependency) ----
@@ -164,15 +195,16 @@ const StatCard = ({ statKey, value, prevMonthValue, thisMonthValue }) => {
   const sparklinePoints = [effectivePrevMonth, effectiveThisMonth];
 
   return (
-    <Card
+    <MotionCard
       elevation={0}
+      variants={cardEnter}
+      whileHover={{ y: -4, boxShadow: '0 12px 24px -8px rgba(0,0,0,0.15)' }}
+      whileTap={{ scale: 0.98 }}
       sx={{
         height: '100%',
         border: '1px solid',
         borderColor: 'divider',
         borderRadius: '16px',
-        transition: 'all 0.2s ease-in-out',
-        '&:hover': { boxShadow: 3, transform: 'translateY(-2px)' },
       }}
     >
       <CardContent sx={{ p: 2.5 }}>
@@ -213,7 +245,7 @@ const StatCard = ({ statKey, value, prevMonthValue, thisMonthValue }) => {
           {value}
         </Typography>
       </CardContent>
-    </Card>
+    </MotionCard>
   );
 };
 
@@ -252,8 +284,14 @@ const timeAgo = (dateStr) => {
 };
 
 const EnrollmentItem = ({ user, course, date }) => (
-  <Paper
+  <MotionPaper
     variant="outlined"
+    layout
+    variants={listItemEnter}
+    initial="hidden"
+    animate="visible"
+    exit="exit"
+    whileHover={{ backgroundColor: '#f0f1f5' }}
     sx={{
       p: 1.75,
       mb: 1.5,
@@ -263,8 +301,6 @@ const EnrollmentItem = ({ user, course, date }) => (
       display: 'flex',
       alignItems: 'center',
       gap: 1.5,
-      transition: 'all 0.15s ease-in-out',
-      '&:hover': { bgcolor: 'grey.100' },
     }}
   >
     <Avatar sx={{ width: 38, height: 38, bgcolor: avatarColorFromString(user || ''), fontSize: '0.85rem' }}>
@@ -295,12 +331,18 @@ const EnrollmentItem = ({ user, course, date }) => (
         sx={{ fontWeight: 700, fontSize: '0.65rem', height: 22 }}
       />
     )}
-  </Paper>
+  </MotionPaper>
 );
 
 const CompletionItem = ({ user, course, date }) => (
-  <Paper
+  <MotionPaper
     variant="outlined"
+    layout
+    variants={listItemEnter}
+    initial="hidden"
+    animate="visible"
+    exit="exit"
+    whileHover={{ boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
     sx={{
       p: 1.75,
       mb: 1.5,
@@ -310,8 +352,6 @@ const CompletionItem = ({ user, course, date }) => (
       display: 'flex',
       alignItems: 'center',
       gap: 1.5,
-      transition: 'all 0.15s ease-in-out',
-      '&:hover': { boxShadow: 2, borderColor: 'primary.main' },
     }}
   >
     <Box sx={{ position: 'relative' }}>
@@ -354,7 +394,7 @@ const CompletionItem = ({ user, course, date }) => (
         {timeAgo(date)}
       </Typography>
     </Stack>
-  </Paper>
+  </MotionPaper>
 );
 
 const AdminDashboard = () => {
@@ -459,7 +499,15 @@ const AdminDashboard = () => {
         automatically calculate the real increase/decrease (e.g. "+33.3%") and the
         sparkline will plot that real two-point trend instead of [0, value].
       */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
+      <MotionBox
+        component={Grid}
+        container
+        spacing={3}
+        sx={{ mb: 3 }}
+        variants={containerStagger}
+        initial="hidden"
+        animate="visible"
+      >
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard
             statKey="totalUsers"
@@ -492,11 +540,14 @@ const AdminDashboard = () => {
             thisMonthValue={stats.totalEnrollmentsThisMonth}
           />
         </Grid>
-      </Grid>
+      </MotionBox>
 
       {/* Recent Activity Section */}
-      <Paper
+      <MotionPaper
         elevation={0}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.25, ease: [0.16, 1, 0.3, 1] }}
         sx={{
           p: { xs: 2.5, md: 4 },
           borderRadius: '20px',
@@ -537,14 +588,16 @@ const AdminDashboard = () => {
 
             {enrollments.length > 0 ? (
               <Box sx={{ mt: 2 }}>
-                {enrollments.map((enrollment) => (
-                  <EnrollmentItem
-                    key={enrollment.id}
-                    user={enrollment.user?.username}
-                    course={enrollment.course?.title}
-                    date={enrollment.enrolled_on}
-                  />
-                ))}
+                <AnimatePresence initial={true}>
+                  {enrollments.map((enrollment) => (
+                    <EnrollmentItem
+                      key={enrollment.id}
+                      user={enrollment.user?.username}
+                      course={enrollment.course?.title}
+                      date={enrollment.enrolled_on}
+                    />
+                  ))}
+                </AnimatePresence>
                 <Button
                   fullWidth
                   variant="outlined"
@@ -596,14 +649,16 @@ const AdminDashboard = () => {
 
             {completions.length > 0 ? (
               <Box sx={{ mt: 2 }}>
-                {completions.map((completion) => (
-                  <CompletionItem
-                    key={completion.id}
-                    user={completion.user?.username}
-                    course={completion.course?.title}
-                    date={completion.completed_on}
-                  />
-                ))}
+                <AnimatePresence initial={true}>
+                  {completions.map((completion) => (
+                    <CompletionItem
+                      key={completion.id}
+                      user={completion.user?.username}
+                      course={completion.course?.title}
+                      date={completion.completed_on}
+                    />
+                  ))}
+                </AnimatePresence>
               </Box>
             ) : (
               <Paper variant="outlined" sx={{ p: 3, textAlign: 'center', bgcolor: 'grey.50', mt: 2, borderRadius: '12px' }}>
@@ -665,7 +720,7 @@ const AdminDashboard = () => {
             </Stack>
           </Grid>
         </Grid>
-      </Paper>
+      </MotionPaper>
     </Box>
   );
 };

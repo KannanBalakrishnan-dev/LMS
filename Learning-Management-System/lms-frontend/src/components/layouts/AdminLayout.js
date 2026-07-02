@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Box,
   Drawer,
@@ -46,6 +47,34 @@ const NAV_ACTIVE_BG = '#1e1b4b';
 const NAV_TEXT = '#312e81';
 const NAV_ICON = '#4c4899';
 const NAV_HOVER_BG = '#f1f0fb';
+
+// ---- motion-wrapped MUI primitives ----
+const MotionListItemButton = motion(ListItemButton);
+const MotionBox = motion(Box);
+
+// ---- shared animation variants ----
+const EASE = [0.16, 1, 0.3, 1];
+
+const pageVariants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.25, ease: EASE } },
+  exit: { opacity: 0, y: -8, transition: { duration: 0.15, ease: EASE } },
+};
+
+const navStagger = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.04, delayChildren: 0.05 } },
+};
+
+const navItemEnter = {
+  hidden: { opacity: 0, x: -10 },
+  visible: { opacity: 1, x: 0, transition: { duration: 0.25, ease: EASE } },
+};
+
+const notifListEnter = {
+  hidden: { opacity: 0, x: -8 },
+  visible: { opacity: 1, x: 0, transition: { duration: 0.2, ease: EASE } },
+};
 
 const AdminLayout = () => {
   const [drawerOpen, setDrawerOpen] = useState(true);
@@ -214,9 +243,33 @@ const AdminLayout = () => {
                 '&:hover': { background: 'rgba(0,0,0,0.06)' },
               }}
             >
-              {logoHovered
-                ? (drawerOpen ? <MenuOpenIcon sx={{ color: '#374151', fontSize: 26 }} /> : <MenuIcon sx={{ color: '#374151', fontSize: 26 }} />)
-                : <AutoStories sx={{ color: NAV_ACTIVE_BG, fontSize: 28 }} />}
+              <AnimatePresence mode="wait" initial={false}>
+                {logoHovered ? (
+                  <motion.div
+                    key={drawerOpen ? 'close' : 'open'}
+                    initial={{ opacity: 0, rotate: -90, scale: 0.6 }}
+                    animate={{ opacity: 1, rotate: 0, scale: 1 }}
+                    exit={{ opacity: 0, rotate: 90, scale: 0.6 }}
+                    transition={{ duration: 0.18, ease: EASE }}
+                    style={{ display: 'flex' }}
+                  >
+                    {drawerOpen
+                      ? <MenuOpenIcon sx={{ color: '#374151', fontSize: 26 }} />
+                      : <MenuIcon sx={{ color: '#374151', fontSize: 26 }} />}
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="logo"
+                    initial={{ opacity: 0, rotate: 90, scale: 0.6 }}
+                    animate={{ opacity: 1, rotate: 0, scale: 1 }}
+                    exit={{ opacity: 0, rotate: -90, scale: 0.6 }}
+                    transition={{ duration: 0.18, ease: EASE }}
+                    style={{ display: 'flex' }}
+                  >
+                    <AutoStories sx={{ color: NAV_ACTIVE_BG, fontSize: 28 }} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </Box>
           </Tooltip>
 
@@ -239,15 +292,24 @@ const AdminLayout = () => {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             {/* Notifications */}
             <IconButton onClick={handleNotificationClick} sx={{ color: '#374151' }}>
-              <Badge badgeContent={notifications.filter(n => !n.is_read).length} color="error">
-                <Notifications />
-              </Badge>
+              <motion.div
+                key={notifications.filter(n => !n.is_read).length}
+                initial={{ scale: 1 }}
+                animate={{ scale: [1, 1.15, 1] }}
+                transition={{ duration: 0.3, ease: EASE }}
+              >
+                <Badge badgeContent={notifications.filter(n => !n.is_read).length} color="error">
+                  <Notifications />
+                </Badge>
+              </motion.div>
             </IconButton>
             {/* Profile Avatar */}
             <IconButton onClick={(e) => setAnchorEl(e.currentTarget)}>
-              <Avatar sx={{ bgcolor: NAV_ACTIVE_BG, width: 36, height: 36, fontSize: '0.9rem' }}>
-                {user?.username?.[0]?.toUpperCase() || 'A'}
-              </Avatar>
+              <motion.div whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }}>
+                <Avatar sx={{ bgcolor: NAV_ACTIVE_BG, width: 36, height: 36, fontSize: '0.9rem' }}>
+                  {user?.username?.[0]?.toUpperCase() || 'A'}
+                </Avatar>
+              </motion.div>
             </IconButton>
           </Box>
         </Toolbar>
@@ -284,14 +346,23 @@ const AdminLayout = () => {
           },
         }}
       >
-        <List sx={{ px: 1.5, pt: 2, pb: 0, flex: 1 }}>
+        <MotionBox
+          component={List}
+          sx={{ px: 1.5, pt: 2, pb: 0, flex: 1 }}
+          variants={navStagger}
+          initial="hidden"
+          animate="visible"
+        >
           {menuItems.map((item) => {
             const isActive = location.pathname === item.path;
             const expanded = drawerOpen || railHovered;
             return (
               <Tooltip key={item.text} title={!expanded ? item.text : ''} placement="right">
-                <ListItemButton
+                <MotionListItemButton
                   onClick={() => navigate(item.path)}
+                  variants={navItemEnter}
+                  whileHover={{ x: isActive ? 0 : 3 }}
+                  whileTap={{ scale: 0.97 }}
                   sx={{
                     justifyContent: expanded ? 'flex-start' : 'center',
                     px: expanded ? 2 : 0,
@@ -333,11 +404,11 @@ const AdminLayout = () => {
                       }}
                     />
                   )}
-                </ListItemButton>
+                </MotionListItemButton>
               </Tooltip>
             );
           })}
-        </List>
+        </MotionBox>
 
         {/* User profile at bottom */}
         {(drawerOpen || railHovered) && (
@@ -383,7 +454,17 @@ const AdminLayout = () => {
         }}
       >
         <Box sx={{ p: 2, width: '100%', boxSizing: 'border-box' }}>
-          <Outlet />
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              variants={pageVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+            >
+              <Outlet />
+            </motion.div>
+          </AnimatePresence>
         </Box>
       </Box>
 
@@ -415,36 +496,46 @@ const AdminLayout = () => {
               <Typography variant="body2" color="text.secondary">No notifications</Typography>
             </Box>
           ) : (
-            notifications.map((notification) => (
-              <Box
-                key={notification.id}
-                onClick={() => handleNotificationItemClick(notification)}
-                sx={{
-                  p: 2, borderBottom: `1px solid ${theme.palette.divider}`, cursor: 'pointer',
-                  backgroundColor: notification.is_read ? 'transparent' : theme.palette.action.hover,
-                  '&:hover': { backgroundColor: theme.palette.action.hover },
-                }}
-              >
-                {notification.sender_username && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <Avatar
-                      src={notification.sender_profile_picture || undefined}
-                      imgProps={{ referrerPolicy: 'no-referrer' }}
-                      sx={{ width: 24, height: 24, mr: 1, fontSize: '0.75rem' }}
-                    >
-                      {notification.sender_username[0]?.toUpperCase()}
-                    </Avatar>
-                    <Typography variant="subtitle2" fontWeight={500} color="primary">
-                      {notification.sender_username}
+            <AnimatePresence>
+              {notifications.map((notification) => (
+                <motion.div
+                  key={notification.id}
+                  layout
+                  variants={notifListEnter}
+                  initial="hidden"
+                  animate="visible"
+                  exit={{ opacity: 0, height: 0 }}
+                  whileHover={{ backgroundColor: theme.palette.action.hover }}
+                >
+                  <Box
+                    onClick={() => handleNotificationItemClick(notification)}
+                    sx={{
+                      p: 2, borderBottom: `1px solid ${theme.palette.divider}`, cursor: 'pointer',
+                      backgroundColor: notification.is_read ? 'transparent' : theme.palette.action.hover,
+                    }}
+                  >
+                    {notification.sender_username && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                        <Avatar
+                          src={notification.sender_profile_picture || undefined}
+                          imgProps={{ referrerPolicy: 'no-referrer' }}
+                          sx={{ width: 24, height: 24, mr: 1, fontSize: '0.75rem' }}
+                        >
+                          {notification.sender_username[0]?.toUpperCase()}
+                        </Avatar>
+                        <Typography variant="subtitle2" fontWeight={500} color="primary">
+                          {notification.sender_username}
+                        </Typography>
+                      </Box>
+                    )}
+                    <Typography variant="body2" sx={{ mb: 0.5 }}>{notification.message}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {new Date(notification.created_at).toLocaleString()}
                     </Typography>
                   </Box>
-                )}
-                <Typography variant="body2" sx={{ mb: 0.5 }}>{notification.message}</Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {new Date(notification.created_at).toLocaleString()}
-                </Typography>
-              </Box>
-            ))
+                </motion.div>
+              ))}
+            </AnimatePresence>
           )}
         </Box>
       </Menu>

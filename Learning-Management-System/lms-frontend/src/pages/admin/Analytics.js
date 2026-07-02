@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Box,
   Paper,
@@ -28,6 +29,29 @@ const PALETTE = {
   purple: { bg: "#F1EBFC", fg: "#8B5CF6" },
   amber: { bg: "#FDF3DF", fg: "#E5A93B" },
   green: { bg: "#E4F4EC", fg: "#1F9D6E" },
+};
+
+// ─── motion-wrapped MUI primitives ─────────────────────────────────────────
+const MotionCard = motion(Card);
+const MotionBox = motion(Box);
+
+// ─── shared animation variants ─────────────────────────────────────────────
+const EASE = [0.16, 1, 0.3, 1]; // smooth "easeOutExpo"-like curve
+
+const staggerContainer = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.07, delayChildren: 0.05 } },
+};
+
+const cardEnter = {
+  hidden: { opacity: 0, y: 16 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: EASE } },
+};
+
+const panelEnter = {
+  hidden: { opacity: 0, y: 12 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: EASE } },
+  exit: { opacity: 0, y: -8, transition: { duration: 0.15, ease: EASE } },
 };
 
 /**
@@ -72,8 +96,11 @@ const StatCard = ({ icon, iconColor, label, value, change }) => {
 //   const isPositive = hasData && change >= 0;
 
   return (
-    <Card
+    <MotionCard
       variant="outlined"
+      variants={cardEnter}
+      whileHover={{ y: -4, boxShadow: "0 12px 24px -8px rgba(0,0,0,0.12)" }}
+      transition={{ type: "spring", stiffness: 300, damping: 22 }}
       sx={{
         borderRadius: 3,
         border: "1px solid",
@@ -160,14 +187,15 @@ const StatCard = ({ icon, iconColor, label, value, change }) => {
           </Stack>
         )}
       </CardContent>
-    </Card>
+    </MotionCard>
   );
 };
 
 // ─── ChartCard ───────────────────────────────────────────────────────────────
 const ChartCard = ({ title, action, children }) => (
-  <Card
+  <MotionCard
     variant="outlined"
+    variants={cardEnter}
     sx={{
       borderRadius: 1,
       border: "1px solid",
@@ -183,7 +211,7 @@ const ChartCard = ({ title, action, children }) => (
       sx={{ pb: 0 }}
     />
     <CardContent>{children}</CardContent>
-  </Card>
+  </MotionCard>
 );
 
 // ─── Analytics ───────────────────────────────────────────────────────────────
@@ -301,7 +329,15 @@ const Analytics = () => {
   ];
 
   const StatCardsRow = () => (
-    <Grid container spacing={2.5} sx={{ mb: 3 }}>
+    <MotionBox
+      component={Grid}
+      container
+      spacing={2.5}
+      sx={{ mb: 3 }}
+      variants={staggerContainer}
+      initial="hidden"
+      animate="visible"
+    >
       {statCards.map((card) => (
         <Grid key={card.label} size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard
@@ -313,7 +349,7 @@ const Analytics = () => {
           />
         </Grid>
       ))}
-    </Grid>
+    </MotionBox>
   );
 
   // ── Pie chart data ──
@@ -324,7 +360,14 @@ const Analytics = () => {
   // ─── Tab panels ──────────────────────────────────────────────────────────
 
   const UserAnalytics = () => (
-    <Grid container spacing={3}>
+    <MotionBox
+      component={Grid}
+      container
+      spacing={3}
+      variants={staggerContainer}
+      initial="hidden"
+      animate="visible"
+    >
       <Grid size={{ xs: 12, md: 6 }}>
         <ChartCard
           title="User Registration Trends"
@@ -431,11 +474,18 @@ const Analytics = () => {
           </Box>
         </ChartCard>
       </Grid>
-    </Grid>
+    </MotionBox>
   );
 
   const CourseAnalytics = () => (
-    <Grid container spacing={3}>
+    <MotionBox
+      component={Grid}
+      container
+      spacing={3}
+      variants={staggerContainer}
+      initial="hidden"
+      animate="visible"
+    >
       <Grid size={{ xs: 12 }}>
         <ChartCard title="Course Enrollment Statistics">
           <BarChart
@@ -533,11 +583,18 @@ const Analytics = () => {
           />
         </ChartCard>
       </Grid>
-    </Grid>
+    </MotionBox>
   );
 
   const TeamAnalytics = () => (
-    <Grid container spacing={3}>
+    <MotionBox
+      component={Grid}
+      container
+      spacing={3}
+      variants={staggerContainer}
+      initial="hidden"
+      animate="visible"
+    >
       <Grid size={{ xs: 12, md: 6 }}>
         <ChartCard title="Team Performance">
           <BarChart
@@ -584,7 +641,7 @@ const Analytics = () => {
           />
         </ChartCard>
       </Grid>
-    </Grid>
+    </MotionBox>
   );
 
   if (loading) {
@@ -602,12 +659,16 @@ const Analytics = () => {
 
   return (
     <Box>
-      <Stack
+      <MotionBox
+        component={Stack}
         direction={{ xs: "column", sm: "row" }}
         justifyContent="space-between"
         alignItems={{ xs: "flex-start", sm: "center" }}
         spacing={2}
         mb={3}
+        initial={{ opacity: 0, y: -12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: EASE }}
       >
         <Box>
           <Typography variant="h4" fontWeight={700}>
@@ -654,13 +715,45 @@ const Analytics = () => {
             <Tab label="Team Analytics" disableRipple />
           </Tabs>
         </Paper>
-      </Stack>
+      </MotionBox>
 
       <StatCardsRow />
 
-      {selectedTab === 0 && <UserAnalytics />}
-      {selectedTab === 1 && <CourseAnalytics />}
-      {selectedTab === 2 && <TeamAnalytics />}
+      <AnimatePresence mode="wait">
+        {selectedTab === 0 && (
+          <motion.div
+            key="user"
+            variants={panelEnter}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+          >
+            <UserAnalytics />
+          </motion.div>
+        )}
+        {selectedTab === 1 && (
+          <motion.div
+            key="course"
+            variants={panelEnter}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+          >
+            <CourseAnalytics />
+          </motion.div>
+        )}
+        {selectedTab === 2 && (
+          <motion.div
+            key="team"
+            variants={panelEnter}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+          >
+            <TeamAnalytics />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Box>
   );
 };

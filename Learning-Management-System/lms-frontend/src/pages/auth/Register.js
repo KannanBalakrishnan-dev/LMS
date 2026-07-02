@@ -510,7 +510,7 @@ const Register = ({ onClose }) => {
         </MenuItem>
 
         <MenuItem value="STUDENT">Student</MenuItem>
-        <MenuItem value="INSTRUCTOR">Instructor</MenuItem>
+        <MenuItem value="STAFF">Staff</MenuItem>
         <MenuItem value="ADMIN">Admin</MenuItem>
     </Select>
 </FormControl>
