@@ -3,7 +3,9 @@ import {
   Alert,
   Box,
   Button,
+  Chip,
   CircularProgress,
+  Grid,
   IconButton,
   InputAdornment,
   Paper,
@@ -21,12 +23,23 @@ import {
   Typography,
 } from '@mui/material';
 import {
+  CheckCircle as CheckCircleIcon,
   CloudUpload as CloudUploadIcon,
+  Description as DescriptionIcon,
+  MailOutline as MailOutlineIcon,
   Search as SearchIcon,
+  Shield as ShieldIcon,
   Upload as UploadIcon,
   Visibility as VisibilityIcon,
 } from '@mui/icons-material';
 import api from '../../api';
+
+// ---- Shared design tokens for this page ---------------------------------
+const ACCENT = '#0f6b4f'; // deep emerald, echoes "certified / approved"
+const ACCENT_DARK = '#0b5240';
+const ACCENT_SOFT = '#e6f4ee';
+const SURFACE = 'linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)';
+const BORDER = 'rgba(15, 23, 42, 0.08)';
 
 const parseUploadError = (err) => {
   const data = err?.response?.data || {};
@@ -41,6 +54,7 @@ const parseUploadError = (err) => {
   return data.error || 'Upload failed. Make sure the file is a valid .docx with all required placeholders.';
 };
 
+// ---- Individual course templates -----------------------------------------
 const CourseTemplatesTab = () => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -207,15 +221,16 @@ const CourseTemplatesTab = () => {
           p: 2.5,
           mb: 2,
           borderRadius: 3,
-          background: 'linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)',
-          borderColor: 'rgba(15, 23, 42, 0.08)',
+          background: SURFACE,
+          borderColor: BORDER,
         }}
       >
         <Typography variant="subtitle1" fontWeight={700} gutterBottom>
-          Course-Specific Templates
+          Course-specific templates
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Use this only when a particular course needs a different certificate design.
+          Use this only when a particular course needs its own certificate design. Courses without a
+          custom template fall back to the design on the "All Courses" tab.
         </Typography>
         <TextField
           size="small"
@@ -235,11 +250,16 @@ const CourseTemplatesTab = () => {
 
       <input ref={fileInputRef} type="file" accept=".docx" hidden onChange={handleFileChange} />
 
-      <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3 }}>
+      <TableContainer
+        component={Paper}
+        variant="outlined"
+        sx={{ borderRadius: 3, borderColor: BORDER, boxShadow: '0 10px 30px rgba(15, 23, 42, 0.04)' }}
+      >
         <Table size="small">
           <TableHead>
-            <TableRow sx={{ backgroundColor: 'action.hover' }}>
-              <TableCell sx={{ fontWeight: 700 }}>Course Name</TableCell>
+            <TableRow sx={{ backgroundColor: '#f8fafc' }}>
+              <TableCell sx={{ fontWeight: 700 }}>Course name</TableCell>
+              <TableCell sx={{ fontWeight: 700, width: 160 }}>Status</TableCell>
               <TableCell align="center" sx={{ fontWeight: 700, width: 90 }}>
                 View
               </TableCell>
@@ -251,13 +271,13 @@ const CourseTemplatesTab = () => {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={3} align="center" sx={{ py: 3 }}>
+                <TableCell colSpan={4} align="center" sx={{ py: 3 }}>
                   <CircularProgress size={22} />
                 </TableCell>
               </TableRow>
             ) : filteredRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={3}>
+                <TableCell colSpan={4}>
                   <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
                     {search ? 'No courses match your search.' : 'No courses found.'}
                   </Typography>
@@ -271,14 +291,25 @@ const CourseTemplatesTab = () => {
                 return (
                   <TableRow key={row.course_id} hover>
                     <TableCell>{row.course_name}</TableCell>
+                    <TableCell>
+                      <Chip
+                        size="small"
+                        label={row.has_template ? 'Custom template' : 'Using default'}
+                        sx={{
+                          fontWeight: 600,
+                          bgcolor: row.has_template ? ACCENT_SOFT : '#f1f5f9',
+                          color: row.has_template ? ACCENT_DARK : '#64748b',
+                        }}
+                      />
+                    </TableCell>
                     <TableCell align="center">
                       <Tooltip title={row.has_template ? 'View uploaded template' : 'No template uploaded yet'}>
                         <span>
                           <IconButton
                             size="small"
-                            color="primary"
                             disabled={!row.has_template || busy}
                             onClick={() => handleView(row)}
+                            sx={{ color: ACCENT }}
                           >
                             {isViewing ? <CircularProgress size={18} /> : <VisibilityIcon fontSize="small" />}
                           </IconButton>
@@ -290,9 +321,9 @@ const CourseTemplatesTab = () => {
                         <span>
                           <IconButton
                             size="small"
-                            color="secondary"
                             disabled={busy}
                             onClick={() => handleUploadClick(row.course_id)}
+                            sx={{ color: ACCENT_DARK }}
                           >
                             {isUploading ? <CircularProgress size={18} /> : <UploadIcon fontSize="small" />}
                           </IconButton>
@@ -310,6 +341,7 @@ const CourseTemplatesTab = () => {
   );
 };
 
+// ---- All-courses (global default) template --------------------------------
 const AllCoursesTemplateTab = () => {
   const [hasTemplate, setHasTemplate] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -403,6 +435,19 @@ const AllCoursesTemplateTab = () => {
     }
   };
 
+  const infoCards = [
+    {
+      icon: <ShieldIcon sx={{ color: ACCENT }} fontSize="small" />,
+      title: 'Secure verification',
+      body: 'Every certificate includes a unique ID and a verification link learners can share.',
+    },
+    {
+      icon: <MailOutlineIcon sx={{ color: ACCENT }} fontSize="small" />,
+      title: 'Auto-delivery',
+      body: 'Certificates are generated and emailed automatically once a learner passes the final exam.',
+    },
+  ];
+
   return (
     <Box>
       <Snackbar
@@ -420,101 +465,221 @@ const AllCoursesTemplateTab = () => {
         </Alert>
       </Snackbar>
 
-      <Paper
-        variant="outlined"
+      <input ref={fileInputRef} type="file" accept=".docx" hidden onChange={handleFileSelect} />
+
+      <Box
         sx={{
-          p: { xs: 2.5, md: 3 },
-          maxWidth: 760,
+          bgcolor: '#eef1f6',
           borderRadius: 4,
-          background: 'linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)',
-          borderColor: 'rgba(15, 23, 42, 0.08)',
-          boxShadow: '0 10px 30px rgba(15, 23, 42, 0.05)',
+          p: { xs: 2, sm: 3 },
         }}
       >
-        <Typography variant="subtitle1" fontWeight={700} gutterBottom>
-          Certificate Template For All Courses
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Upload one certificate template to use across all courses. Individual courses can still have their own template when needed.
-        </Typography>
-
-        <Box
-          sx={{
-            mb: 3,
-            p: 2,
-            borderRadius: 3,
-            bgcolor: '#f8fafc',
-            border: '1px solid rgba(15, 23, 42, 0.06)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 2,
-            flexWrap: 'wrap',
-          }}
-        >
-          {checking ? (
-            <CircularProgress size={18} />
-          ) : (
-            <>
-              <Box
-                sx={{
-                  px: 1.5,
-                  py: 0.6,
-                  borderRadius: 2,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  bgcolor: hasTemplate ? '#dcfce7' : '#f3f4f6',
-                  color: hasTemplate ? '#166534' : '#6b7280',
-                }}
-              >
-                {hasTemplate ? 'Active template available' : 'No template uploaded'}
-              </Box>
-              {hasTemplate && (
-                <Tooltip title="View current template">
-                  <span>
-                    <IconButton size="small" color="primary" onClick={handleView} disabled={viewing}>
-                      {viewing ? <CircularProgress size={18} /> : <VisibilityIcon fontSize="small" />}
-                    </IconButton>
-                  </span>
-                </Tooltip>
-              )}
-            </>
-          )}
-        </Box>
-
-        <input ref={fileInputRef} type="file" accept=".docx" hidden onChange={handleFileSelect} />
-
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-          <Button
+      <Grid container spacing={3}>
+        {/* Left: upload zone + feature cards */}
+        <Grid item xs={12} md={7}>
+          <Paper
             variant="outlined"
-            startIcon={<CloudUploadIcon />}
-            onClick={() => {
-              if (fileInputRef.current) {
-                fileInputRef.current.value = '';
-                fileInputRef.current.click();
-              }
+            sx={{
+              p: 4,
+              borderRadius: 4,
+              textAlign: 'center',
+              borderStyle: 'dashed',
+              borderWidth: 2,
+              borderColor: selectedFile ? ACCENT : BORDER,
+              background: '#ffffff',
+              transition: 'border-color 0.2s ease',
             }}
-            disabled={uploading}
           >
-            {selectedFile ? selectedFile.name : 'Choose Template'}
-          </Button>
-          {selectedFile && (
-            <Button
-              variant="contained"
-              onClick={handleUpload}
-              disabled={uploading}
-              startIcon={uploading ? <CircularProgress size={16} /> : <UploadIcon />}
-            >
-              {hasTemplate ? 'Replace For All Courses' : 'Upload For All Courses'}
-            </Button>
-          )}
-          {selectedFile && (
-            <Button size="small" color="error" onClick={() => setSelectedFile(null)} disabled={uploading}>
-              Clear
-            </Button>
-          )}
-        </Box>
-      </Paper>
+            {checking ? (
+              <CircularProgress size={22} />
+            ) : (
+              <>
+                <Box
+                  sx={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: '50%',
+                    bgcolor: hasTemplate || selectedFile ? ACCENT_SOFT : '#eef2f7',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    mx: 'auto',
+                    mb: 2,
+                  }}
+                >
+                  <DescriptionIcon sx={{ fontSize: 30, color: hasTemplate || selectedFile ? ACCENT : '#94a3b8' }} />
+                </Box>
+
+                <Typography variant="h6" fontWeight={700}>
+                  {selectedFile ? selectedFile.name : hasTemplate ? 'Template active for all courses' : 'No template uploaded'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 3, maxWidth: 420, mx: 'auto' }}>
+                  {selectedFile
+                    ? 'Ready to upload. This will apply to every course without its own custom template.'
+                    : 'Upload a Word (.docx) file with the required placeholders to use as the base for every course certificate.'}
+                </Typography>
+
+                <Box sx={{ display: 'flex', gap: 1.5, justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <Button
+                    variant="outlined"
+                    startIcon={<CloudUploadIcon />}
+                    onClick={() => {
+                      if (fileInputRef.current) {
+                        fileInputRef.current.value = '';
+                        fileInputRef.current.click();
+                      }
+                    }}
+                    disabled={uploading}
+                    sx={{
+                      borderColor: ACCENT,
+                      color: ACCENT_DARK,
+                      fontWeight: 600,
+                      '&:hover': { borderColor: ACCENT_DARK, bgcolor: ACCENT_SOFT },
+                    }}
+                  >
+                    Choose template
+                  </Button>
+
+                  {selectedFile && (
+                    <>
+                      <Button
+                        variant="contained"
+                        onClick={handleUpload}
+                        disabled={uploading}
+                        startIcon={uploading ? <CircularProgress size={16} color="inherit" /> : <UploadIcon />}
+                        sx={{ bgcolor: ACCENT, fontWeight: 600, '&:hover': { bgcolor: ACCENT_DARK } }}
+                      >
+                        {hasTemplate ? 'Replace for all courses' : 'Upload for all courses'}
+                      </Button>
+                      <Button size="small" color="error" onClick={() => setSelectedFile(null)} disabled={uploading}>
+                        Clear
+                      </Button>
+                    </>
+                  )}
+                </Box>
+              </>
+            )}
+          </Paper>
+
+          <Grid container spacing={2} sx={{ mt: 0.5 }}>
+            {infoCards.map((card) => (
+              <Grid item xs={12} sm={6} key={card.title}>
+                <Paper
+                  variant="outlined"
+                  sx={{ p: 2, borderRadius: 3, borderColor: BORDER, background: '#ffffff', height: '100%' }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.75 }}>
+                    {card.icon}
+                    <Typography variant="subtitle2" fontWeight={700}>
+                      {card.title}
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary">
+                    {card.body}
+                  </Typography>
+                </Paper>
+              </Grid>
+            ))}
+          </Grid>
+        </Grid>
+
+        {/* Right: persistent status panel — always visible, content adapts to state */}
+        <Grid item xs={12} md={5}>
+          <Paper
+            variant="outlined"
+            sx={{
+              p: 3,
+              borderRadius: 4,
+              borderColor: BORDER,
+              background: '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            {checking ? (
+              <CircularProgress size={20} />
+            ) : (
+              <>
+                <Chip
+                  size="small"
+                  icon={<CheckCircleIcon sx={{ fontSize: '16px !important', color: `${ACCENT} !important` }} />}
+                  label={hasTemplate ? 'CUSTOM TEMPLATE' : 'GLOBAL SYSTEM DEFAULT'}
+                  sx={{
+                    alignSelf: 'flex-start',
+                    bgcolor: ACCENT_SOFT,
+                    color: ACCENT_DARK,
+                    fontWeight: 700,
+                    fontSize: 11,
+                    letterSpacing: 0.4,
+                    mb: 2,
+                  }}
+                />
+
+                <Typography variant="h6" fontWeight={700} sx={{ lineHeight: 1.25 }}>
+                  {hasTemplate ? 'Your uploaded certificate design' : 'Standard Accreditation Design'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 3 }}>
+                  {hasTemplate
+                    ? 'This is the template you uploaded. It\'s applied automatically to every course unless that course has its own design on the "Individual Courses" tab.'
+                    : 'No custom design has been uploaded yet, so every course uses this baseline layout. Upload your own template on the left to replace it for all courses.'}
+                </Typography>
+
+                <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing: 0.5, color: '#64748b' }}>
+                  ACTIVE ELEMENTS
+                </Typography>
+                <Box sx={{ mt: 1, mb: 3 }}>
+                  {[
+                    'Dynamic student name',
+                    'Course title & completion date',
+                    'Verification ID & QR code',
+                    'Digital signature placeholder',
+                  ].map((item) => (
+                    <Box key={item} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5 }}>
+                      <CheckCircleIcon sx={{ fontSize: 18, color: ACCENT }} />
+                      <Typography variant="body2">{item}</Typography>
+                    </Box>
+                  ))}
+                </Box>
+
+                <Box sx={{ mt: 'auto', display: 'flex', gap: 1.5 }}>
+                  <Tooltip title={hasTemplate ? '' : 'No custom file to view yet — this is the built-in layout'}>
+                    <span style={{ flex: 1 }}>
+                      <Button
+                        fullWidth
+                        variant="outlined"
+                        onClick={handleView}
+                        disabled={viewing || !hasTemplate}
+                        startIcon={viewing ? <CircularProgress size={16} /> : <VisibilityIcon />}
+                        sx={{ borderColor: BORDER, color: '#0f172a', fontWeight: 600 }}
+                      >
+                        View Template
+                      </Button>
+                    </span>
+                  </Tooltip>
+                  <Tooltip title="Placeholder positions and styling — coming soon">
+                    <span style={{ flex: 1 }}>
+                      <Button
+                        fullWidth
+                        disabled
+                        sx={{
+                          bgcolor: '#e4e7fb',
+                          color: '#4338ca',
+                          fontWeight: 600,
+                          '&.Mui-disabled': { bgcolor: '#e4e7fb', color: '#4338ca', opacity: 0.7 },
+                        }}
+                      >
+                        Edit Overlay Logic
+                      </Button>
+                    </span>
+                  </Tooltip>
+                </Box>
+              </>
+            )}
+          </Paper>
+        </Grid>
+      </Grid>
+      </Box>
     </Box>
   );
 };
@@ -524,14 +689,24 @@ const CertificateTemplateUpload = () => {
 
   return (
     <Box p={3}>
-      <Typography variant="h5" gutterBottom fontWeight={700}>
-        Certificate Templates
+      <Typography variant="h5" fontWeight={700}>
+        Certificate templates
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        Design and manage the certificate learners receive when they complete a course.
       </Typography>
 
       <Tabs
         value={tab}
         onChange={(_, value) => setTab(value)}
-        sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}
+        sx={{
+          mb: 3,
+          borderBottom: 1,
+          borderColor: 'divider',
+          '& .MuiTab-root': { fontWeight: 600, textTransform: 'none' },
+          '& .Mui-selected': { color: `${ACCENT_DARK} !important` },
+          '& .MuiTabs-indicator': { backgroundColor: ACCENT },
+        }}
       >
         <Tab label="All Courses" />
         <Tab label="Individual Courses" />
