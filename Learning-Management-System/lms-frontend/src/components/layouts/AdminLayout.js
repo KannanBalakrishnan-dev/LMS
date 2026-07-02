@@ -32,6 +32,7 @@ import {
   Feedback,
   WorkspacePremium,
   KeyboardArrowDown,
+  // AutoStories,
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '@mui/material/styles';
@@ -40,6 +41,12 @@ import vdartLogo from '../../assets/vdartacademylogo1 1.png';
 
 const drawerWidth = 240;
 const collapsedWidth = 64;
+
+// ---- Palette to match the reference sidebar (navy/indigo pill nav) ----
+const NAV_ACTIVE_BG = '#1e1b4b';
+const NAV_TEXT = '#312e81';
+const NAV_ICON = '#4c4899';
+const NAV_HOVER_BG = '#f1f0fb';
 
 const AdminLayout = () => {
   const [drawerOpen, setDrawerOpen] = useState(true);
@@ -223,7 +230,7 @@ const AdminLayout = () => {
             </IconButton>
             {/* Profile Avatar */}
             <IconButton onClick={(e) => setAnchorEl(e.currentTarget)}>
-              <Avatar sx={{ bgcolor: '#1e3a5f', width: 36, height: 36, fontSize: '0.9rem' }}>
+              <Avatar sx={{ bgcolor: NAV_ACTIVE_BG, width: 36, height: 36, fontSize: '0.9rem' }}>
                 {user?.username?.[0]?.toUpperCase() || 'A'}
               </Avatar>
             </IconButton>
@@ -248,10 +255,10 @@ const AdminLayout = () => {
             overflowX: 'hidden',
             boxSizing: 'border-box',
             background: '#ffffff',
-            color: '#374151',
+            color: NAV_TEXT,
             transition: 'width 0.25s ease',
             border: 'none',
-            borderRight: '1px solid #e5e7eb',
+            borderRight: '1px solid #eef0f5',
             boxShadow: railHovered && !drawerOpen
               ? '4px 0 24px rgba(0,0,0,0.10)'
               : 'none',
@@ -262,7 +269,33 @@ const AdminLayout = () => {
           },
         }}
       >
-        <List sx={{ px: 0, pt: 1, pb: 0 }}>
+        {/* Brand row (matches reference: stacked-book icon + "EduPlatform") */}
+        {/* {(drawerOpen || railHovered) && (
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.2,
+              px: 2.5,
+              pt: 2.5,
+              pb: 1.5,
+            }}
+          >
+            <AutoStories sx={{ color: NAV_ACTIVE_BG, fontSize: 24 }} />
+            <Typography
+              sx={{
+                fontSize: '1.05rem',
+                fontWeight: 700,
+                color: '#111827',
+                letterSpacing: -0.2,
+              }}
+            >
+              EduPlatform
+            </Typography>
+          </Box>
+        )} */}
+
+        <List sx={{ px: 1.5, pt: 1, pb: 0, flex: 1 }}>
           {menuItems.map((item) => {
             const isActive = location.pathname === item.path;
             const expanded = drawerOpen || railHovered;
@@ -272,18 +305,18 @@ const AdminLayout = () => {
                   onClick={() => navigate(item.path)}
                   sx={{
                     justifyContent: expanded ? 'flex-start' : 'center',
-                    px: expanded ? 2.5 : 0,
-                    py: 1.2,
-                    borderRadius: 0,
-                    my: 0,
-                    backgroundColor: isActive ? '#1e3a5f' : 'transparent',
-                    color: isActive ? '#ffffff' : '#374151',
+                    px: expanded ? 2 : 0,
+                    py: 1.1,
+                    borderRadius: '12px',
+                    my: 0.4,
+                    backgroundColor: isActive ? NAV_ACTIVE_BG : 'transparent',
+                    color: isActive ? '#ffffff' : NAV_TEXT,
                     transition: 'background-color 0.15s ease',
                     '&:hover': {
-                      backgroundColor: isActive ? '#1e3a5f' : '#f1f5f9',
-                      color: isActive ? '#ffffff' : '#111827',
+                      backgroundColor: isActive ? NAV_ACTIVE_BG : NAV_HOVER_BG,
+                      color: isActive ? '#ffffff' : NAV_TEXT,
                     },
-                    minHeight: 48,
+                    minHeight: 46,
                   }}
                 >
                   <ListItemIcon
@@ -292,7 +325,7 @@ const AdminLayout = () => {
                       mr: expanded ? 1.5 : 'auto',
                       ml: expanded ? 0 : 'auto',
                       justifyContent: 'center',
-                      color: isActive ? '#ffffff' : '#6b7280',
+                      color: isActive ? '#ffffff' : NAV_ICON,
                       display: 'flex',
                       alignItems: 'center',
                       fontSize: 20,
@@ -305,7 +338,7 @@ const AdminLayout = () => {
                     <ListItemText
                       primary={item.text}
                       primaryTypographyProps={{
-                        fontSize: '0.9rem',
+                        fontSize: '0.92rem',
                         fontWeight: isActive ? 600 : 500,
                         letterSpacing: 0,
                       }}
@@ -321,23 +354,19 @@ const AdminLayout = () => {
         {(drawerOpen || railHovered) && (
           <Box
             sx={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
               px: 2,
-              py: 1.5,
-              borderTop: '1px solid #e5e7eb',
+              py: 1.75,
+              borderTop: '1px solid #eef0f5',
               display: 'flex',
               alignItems: 'center',
               gap: 1.5,
               cursor: 'pointer',
               backgroundColor: '#ffffff',
-              '&:hover': { backgroundColor: '#f1f5f9' },
+              '&:hover': { backgroundColor: NAV_HOVER_BG },
             }}
             onClick={(e) => setAnchorEl(e.currentTarget)}
           >
-            <Avatar sx={{ bgcolor: '#1e3a5f', width: 36, height: 36, fontSize: '0.9rem', flexShrink: 0 }}>
+            <Avatar sx={{ bgcolor: NAV_ACTIVE_BG, width: 36, height: 36, fontSize: '0.9rem', flexShrink: 0 }}>
               {user?.username?.[0]?.toUpperCase() || 'A'}
             </Avatar>
             <Box sx={{ minWidth: 0, flex: 1 }}>
