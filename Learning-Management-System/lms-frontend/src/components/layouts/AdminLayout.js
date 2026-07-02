@@ -32,12 +32,11 @@ import {
   Feedback,
   WorkspacePremium,
   KeyboardArrowDown,
-  // AutoStories,
+  AutoStories,
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '@mui/material/styles';
 import api, { isNetworkConnectionError } from '../../api';
-import vdartLogo from '../../assets/vdartacademylogo1 1.png';
 
 const drawerWidth = 240;
 const collapsedWidth = 64;
@@ -217,7 +216,7 @@ const AdminLayout = () => {
             >
               {logoHovered
                 ? (drawerOpen ? <MenuOpenIcon sx={{ color: '#374151', fontSize: 26 }} /> : <MenuIcon sx={{ color: '#374151', fontSize: 26 }} />)
-                : <Box component="img" src={vdartLogo} alt="VDart" sx={{ width: 48, height: 48, objectFit: 'contain' }} />}
+                : <AutoStories sx={{ color: NAV_ACTIVE_BG, fontSize: 28 }} />}
             </Box>
           </Tooltip>
           <Box sx={{ flexGrow: 1 }} />
@@ -270,7 +269,7 @@ const AdminLayout = () => {
         }}
       >
         {/* Brand row (matches reference: stacked-book icon + "EduPlatform") */}
-        {/* {(drawerOpen || railHovered) && (
+        {(drawerOpen || railHovered) && (
           <Box
             sx={{
               display: 'flex',
@@ -293,7 +292,7 @@ const AdminLayout = () => {
               EduPlatform
             </Typography>
           </Box>
-        )} */}
+        )}
 
         <List sx={{ px: 1.5, pt: 1, pb: 0, flex: 1 }}>
           {menuItems.map((item) => {
