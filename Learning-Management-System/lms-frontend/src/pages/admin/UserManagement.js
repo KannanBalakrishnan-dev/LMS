@@ -227,7 +227,7 @@ const UserManagement = () => {
         if (!payload.first_name) errors.first_name = 'First name is required';
         if (!payload.last_name) errors.last_name = 'Last name is required';
         if (!payload.email) errors.email = 'Email is required';
-        
+
         if (Object.keys(errors).length > 0) {
             setRegisterStaffErrors(errors);
             return;
@@ -421,22 +421,21 @@ const UserManagement = () => {
 
     // ✅ Assign Courses: handlers (added)
     const handleOpenAssignDialog = async (selectedUser) => {
-    setAssigningUser(selectedUser);
-    setOpenAssignDialog(true);
-    try {
-        const [allResp, assignedResp] = await Promise.all([
-            api.get('/courses/'), // all courses
-            api.get(`/users/${selectedUser.id}/assigned_courses/`) // assigned ones
-        ]);
+        setAssigningUser(selectedUser);
+        setOpenAssignDialog(true);
+        try {
+            const [allResp, assignedResp] = await Promise.all([
+                api.get('/courses/'), // all courses
+                api.get(`/users/${selectedUser.id}/assigned_courses/`) // assigned ones
+            ]);
 
-        setAvailableCourses(allResp.data || []);
-        setSelectedCourses((assignedResp.data || []).map(c => c.id)); // pre-check assigned
-    } catch (err) {
-        console.error('Error loading courses:', err);
-        showSnackbar('Failed to load courses', 'error');
-    }
-};
-
+            setAvailableCourses(allResp.data || []);
+            setSelectedCourses((assignedResp.data || []).map(c => c.id)); // pre-check assigned
+        } catch (err) {
+            console.error('Error loading courses:', err);
+            showSnackbar('Failed to load courses', 'error');
+        }
+    };
 
     const handleToggleCourse = (courseId) => {
         setSelectedCourses((prev) =>
@@ -447,99 +446,106 @@ const UserManagement = () => {
     };
 
     const handleSaveAssign = async () => {
-    if ((selectedCourses || []).length > 2) {
-        showSnackbar('Please choose only 2 course', 'error');
-        return;
-    }
-    try {
-        await api.post(`/courses/assign_courses/`, {
-            user_id: assigningUser.id,
-            course_ids: selectedCourses,
-        });
-        showSnackbar('Courses updated successfully', 'success');
-        setOpenAssignDialog(false);
-        setAssigningUser(null);
-        setSelectedCourses([]);
-    } catch (err) {
-        console.error('Error assigning courses:', err);
-        const apiMessage = err?.response?.data?.error || err?.response?.data?.detail;
-        if (apiMessage && apiMessage.toLowerCase().includes('only 2 courses')) {
+        if ((selectedCourses || []).length > 2) {
             showSnackbar('Please choose only 2 course', 'error');
-        } else {
-            showSnackbar('Failed to update courses', 'error');
+            return;
         }
-    }
-};
-
-
-const columns = [
-    { field: 'username', headerName: 'Username', flex: 1 },
-    { field: 'email', headerName: 'Email', flex: 1 },
-    { field: 'first_name', headerName: 'First Name', flex: 1 },
-    { field: 'last_name', headerName: 'Last Name', flex: 1 },
-    { field: 'user_type', headerName: 'Type', flex: 1 },
-    {
-        field: 'team',
-        headerName: 'Team',
-        flex: 1,
-        renderCell: (params) => {
-            if (!params || !params.row) return 'Individual';
-            if (params.row.team && typeof params.row.team === 'object') {
-                return params.row.team.name || 'Individual';
+        try {
+            await api.post(`/courses/assign_courses/`, {
+                user_id: assigningUser.id,
+                course_ids: selectedCourses,
+            });
+            showSnackbar('Courses updated successfully', 'success');
+            setOpenAssignDialog(false);
+            setAssigningUser(null);
+            setSelectedCourses([]);
+        } catch (err) {
+            console.error('Error assigning courses:', err);
+            const apiMessage = err?.response?.data?.error || err?.response?.data?.detail;
+            if (apiMessage && apiMessage.toLowerCase().includes('only 2 courses')) {
+                showSnackbar('Please choose only 2 course', 'error');
+            } else {
+                showSnackbar('Failed to update courses', 'error');
             }
-            return 'Individual';
+        }
+    };
+
+    // ---- Columns: original flat layout (no avatar cards / chips) ----
+    const columns = [
+        { field: 'username', headerName: 'Username', flex: 1 },
+        { field: 'email', headerName: 'Email', flex: 1 },
+        { field: 'first_name', headerName: 'First Name', flex: 1 },
+        { field: 'last_name', headerName: 'Last Name', flex: 1 },
+        { field: 'user_type', headerName: 'Type', flex: 1 },
+        {
+            field: 'team',
+            headerName: 'Team',
+            flex: 1,
+            renderCell: (params) => {
+                if (!params || !params.row) return 'Individual';
+                if (params.row.team && typeof params.row.team === 'object') {
+                    return params.row.team.name || 'Individual';
+                }
+                return 'Individual';
+            },
         },
-    },
-    {
-        field: 'assign_courses',
-        headerName: 'Assign',
-        flex: 0.5,
-        renderCell: (params) => (
-            params?.row?.user_type === 'STUDENT' && (
-                <Tooltip title="Assign Courses">
-                    <IconButton
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenAssignDialog(params.row);
-                        }}
-                    >
-                        <PersonAddIcon />
-                    </IconButton>
-                </Tooltip>
-            )
-        ),
-    },
-    {
-        field: 'actions',
-        headerName: 'Actions',
-        flex: 1,
-        renderCell: (params) => (
-            <Box>
-                {isAdminUser && (
-                    <Tooltip title="Edit">
-                        <IconButton onClick={(e) => { e.stopPropagation(); handleOpenDialog(params.row); }}>
-                            <EditIcon />
+        {
+            field: 'assign_courses',
+            headerName: 'Assign',
+            flex: 0.5,
+            renderCell: (params) => (
+                params?.row?.user_type === 'STUDENT' && (
+                    <Tooltip title="Assign Courses">
+                        <IconButton
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenAssignDialog(params.row);
+                            }}
+                            sx={{ color: 'text.secondary' }}
+                        >
+                            <PersonAddIcon />
                         </IconButton>
                     </Tooltip>
-                )}
-                {isStaffUser && (
-                    <Tooltip title="Request User Deletion">
-                        <IconButton onClick={(e) => { e.stopPropagation(); handleOpenRequestDialog(params.row); }}>
-                            <MarkEmailUnreadIcon />
-                        </IconButton>
-                    </Tooltip>
-                )}
-                {isAdminUser && (
-                    <Tooltip title="Delete">
-                        <IconButton onClick={(e) => { e.stopPropagation(); handleDelete(params.row.id); }}>
-                            <DeleteIcon />
-                        </IconButton>
-                    </Tooltip>
-                )}
-            </Box>
-        ),
-    },
-];
+                )
+            ),
+        },
+        {
+            field: 'actions',
+            headerName: 'Actions',
+            flex: 1,
+            renderCell: (params) => (
+                <Box>
+                    {isAdminUser && (
+                        <Tooltip title="Edit">
+                            <IconButton
+                                onClick={(e) => { e.stopPropagation(); handleOpenDialog(params.row); }}
+                                sx={{ color: '#2E7D32' }}
+                            >
+                                <EditIcon />
+                            </IconButton>
+                        </Tooltip>
+                    )}
+                    {isStaffUser && (
+                        <Tooltip title="Request User Deletion">
+                            <IconButton onClick={(e) => { e.stopPropagation(); handleOpenRequestDialog(params.row); }}>
+                                <MarkEmailUnreadIcon />
+                            </IconButton>
+                        </Tooltip>
+                    )}
+                    {isAdminUser && (
+                        <Tooltip title="Delete">
+                            <IconButton
+                                onClick={(e) => { e.stopPropagation(); handleDelete(params.row.id); }}
+                                sx={{ color: '#D32F2F' }}
+                            >
+                                <DeleteIcon />
+                            </IconButton>
+                        </Tooltip>
+                    )}
+                </Box>
+            ),
+        },
+    ];
 
     const visibleUsers = users.filter((u) =>
         (user?.user_type === 'ADMIN' || user?.user_type === 'STAFF')
@@ -575,25 +581,25 @@ const columns = [
     return (
         <Box sx={{ p: 3 }}>
             {/* Header Section */}
-            <Card 
-                elevation={0} 
-                sx={{ 
-                    mb: 3, 
+            <Card
+                elevation={0}
+                sx={{
+                    mb: 3,
                     bgcolor: 'primary.50',
                     border: '1px solid',
                     borderColor: 'primary.100'
                 }}
             >
                 <CardContent>
-                    <Stack 
-                        direction="row" 
-                        justifyContent="space-between" 
+                    <Stack
+                        direction="row"
+                        justifyContent="space-between"
                         alignItems="center"
                     >
                         <Box>
-                            <Typography 
-                                variant="h4" 
-                                fontWeight="bold" 
+                            <Typography
+                                variant="h4"
+                                fontWeight="bold"
                                 color="primary.main"
                                 gutterBottom
                             >
@@ -609,7 +615,7 @@ const columns = [
                                     variant="outlined"
                                     size="large"
                                     onClick={handleOpenRegisterStaffDialog}
-                                    sx={{ 
+                                    sx={{
                                         borderRadius: '12px',
                                         textTransform: 'none',
                                         px: 3,
@@ -626,7 +632,7 @@ const columns = [
                                 size="large"
                                 startIcon={<AddIcon />}
                                 onClick={() => handleOpenDialog()}
-                                sx={{ 
+                                sx={{
                                     borderRadius: '12px',
                                     textTransform: 'none',
                                     px: 3,
@@ -779,10 +785,10 @@ const columns = [
             </Paper>
 
             {/* ✅ Assign Courses Dialog (added) */}
-            <Dialog 
-                open={openAssignDialog} 
-                onClose={() => setOpenAssignDialog(false)} 
-                maxWidth="sm" 
+            <Dialog
+                open={openAssignDialog}
+                onClose={() => setOpenAssignDialog(false)}
+                maxWidth="sm"
                 fullWidth
                 PaperProps={{
                     sx: {
@@ -801,8 +807,8 @@ const columns = [
                 </DialogTitle>
                 <Divider />
                 <DialogContent sx={{ pt: 3 }}>
-                        <List>
-                            {availableCourses.map((course) => (
+                    <List>
+                        {availableCourses.map((course) => (
                             <ListItem
                                 key={course.id}
                                 disablePadding
@@ -816,19 +822,19 @@ const columns = [
                                     <ListItemText primary={course.title || course.name} />
                                 </ListItemButton>
                             </ListItem>
-                            ))}
-                            {availableCourses.length === 0 && (
-                                <Typography variant="body2" color="text.secondary">
-                                    No courses available.
-                                </Typography>
+                        ))}
+                        {availableCourses.length === 0 && (
+                            <Typography variant="body2" color="text.secondary">
+                                No courses available.
+                            </Typography>
                         )}
                     </List>
                 </DialogContent>
                 <DialogActions sx={{ p: 3, pt: 1 }}>
-                    <Button 
+                    <Button
                         onClick={() => setOpenAssignDialog(false)}
                         variant="outlined"
-                        sx={{ 
+                        sx={{
                             borderRadius: '20px',
                             textTransform: 'none',
                             px: 3
@@ -836,10 +842,10 @@ const columns = [
                     >
                         Cancel
                     </Button>
-                    <Button 
-                        onClick={handleSaveAssign} 
+                    <Button
+                        onClick={handleSaveAssign}
                         variant="contained"
-                        sx={{ 
+                        sx={{
                             borderRadius: '20px',
                             textTransform: 'none',
                             px: 3
@@ -1015,10 +1021,10 @@ const columns = [
                     </Box>
                 </DialogContent>
                 <DialogActions sx={{ p: 3, pt: 1 }}>
-                    <Button 
+                    <Button
                         onClick={handleCloseDialog}
                         variant="outlined"
-                        sx={{ 
+                        sx={{
                             borderRadius: '20px',
                             textTransform: 'none',
                             px: 3
@@ -1026,10 +1032,10 @@ const columns = [
                     >
                         Cancel
                     </Button>
-                    <Button 
-                        onClick={handleSubmit} 
+                    <Button
+                        onClick={handleSubmit}
                         variant="contained"
-                        sx={{ 
+                        sx={{
                             borderRadius: '20px',
                             textTransform: 'none',
                             px: 3
@@ -1084,10 +1090,10 @@ const columns = [
                     </Box>
                 </DialogContent>
                 <DialogActions sx={{ p: 3, pt: 1 }}>
-                    <Button 
+                    <Button
                         onClick={handleCloseRequestDialog}
                         variant="outlined"
-                        sx={{ 
+                        sx={{
                             borderRadius: '20px',
                             textTransform: 'none',
                             px: 3
@@ -1095,11 +1101,11 @@ const columns = [
                     >
                         Cancel
                     </Button>
-                    <Button 
-                        onClick={handleSubmitRequest} 
-                        variant="contained" 
+                    <Button
+                        onClick={handleSubmitRequest}
+                        variant="contained"
                         color="error"
-                        sx={{ 
+                        sx={{
                             borderRadius: '20px',
                             textTransform: 'none',
                             px: 3
@@ -1182,11 +1188,11 @@ const columns = [
                     </Box>
                 </DialogContent>
                 <DialogActions sx={{ p: 3, pt: 1 }}>
-                    <Button 
+                    <Button
                         onClick={handleCloseRegisterStaffDialog}
                         variant="outlined"
                         disabled={registerStaffSubmitting}
-                        sx={{ 
+                        sx={{
                             borderRadius: '20px',
                             textTransform: 'none',
                             px: 3
@@ -1194,12 +1200,12 @@ const columns = [
                     >
                         Cancel
                     </Button>
-                    <Button 
-                        onClick={handleRegisterStaff} 
-                        variant="contained" 
+                    <Button
+                        onClick={handleRegisterStaff}
+                        variant="contained"
                         color="primary"
                         disabled={registerStaffSubmitting}
-                        sx={{ 
+                        sx={{
                             borderRadius: '20px',
                             textTransform: 'none',
                             px: 3

@@ -32,14 +32,20 @@ import {
   Feedback,
   WorkspacePremium,
   KeyboardArrowDown,
+  AutoStories,
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '@mui/material/styles';
 import api, { isNetworkConnectionError } from '../../api';
-import vdartLogo from '../../assets/vdartacademylogo1 1.png';
 
 const drawerWidth = 240;
 const collapsedWidth = 64;
+
+// ---- Palette to match the reference sidebar (navy/indigo pill nav) ----
+const NAV_ACTIVE_BG = '#1e1b4b';
+const NAV_TEXT = '#312e81';
+const NAV_ICON = '#4c4899';
+const NAV_HOVER_BG = '#f1f0fb';
 
 const AdminLayout = () => {
   const [drawerOpen, setDrawerOpen] = useState(true);
@@ -181,23 +187,12 @@ const AdminLayout = () => {
       <AppBar
         position="fixed"
         sx={{
-<<<<<<< HEAD
-          width: '100vw',
-          left: 0,
-          backgroundColor: theme.palette.background.paper,
-          color: theme.palette.text.primary,
-          zIndex: (theme) => theme.zIndex.drawer + 1,
-          borderRadius: 0,
-          boxShadow: '0 2px 12px rgba(0,0,0,0.10)',
-          borderBottom: `1px solid ${theme.palette.divider}`,
-=======
           width: '100%',
           backgroundColor: '#ffffff',
           zIndex: (theme) => theme.zIndex.drawer + 1,
           borderRadius: 0,
           boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
           borderBottom: '1px solid #e5e7eb',
->>>>>>> 5d54974 (team management changed)
         }}
       >
         <Toolbar>
@@ -207,18 +202,6 @@ const AdminLayout = () => {
               onMouseLeave={() => setLogoHovered(false)}
               onClick={handleDrawerToggle}
               sx={{
-<<<<<<< HEAD
-                mr: 2, width: 44, height: 44,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                borderRadius: '10px', cursor: 'pointer', transition: 'background 0.2s',
-                '&:hover': { background: theme.palette.action.hover },
-              }}
-            >
-              {logoHovered
-                ? (drawerOpen
-                    ? <MenuOpenIcon sx={{ color: theme.palette.text.primary, fontSize: 26 }} />
-                    : <MenuIcon sx={{ color: theme.palette.text.primary, fontSize: 26 }} />)
-=======
                 mr: 2,
                 width: 44,
                 height: 44,
@@ -233,30 +216,20 @@ const AdminLayout = () => {
             >
               {logoHovered
                 ? (drawerOpen ? <MenuOpenIcon sx={{ color: '#374151', fontSize: 26 }} /> : <MenuIcon sx={{ color: '#374151', fontSize: 26 }} />)
->>>>>>> 5d54974 (team management changed)
-                : <Box component="img" src={vdartLogo} alt="VDart" sx={{ width: 48, height: 48, objectFit: 'contain' }} />}
+                : <AutoStories sx={{ color: NAV_ACTIVE_BG, fontSize: 28 }} />}
             </Box>
           </Tooltip>
           <Box sx={{ flexGrow: 1 }} />
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-<<<<<<< HEAD
-            <IconButton onClick={handleNotificationClick} sx={{ color: theme.palette.text.primary }}>
-=======
             {/* Notifications */}
             <IconButton onClick={handleNotificationClick} sx={{ color: '#374151' }}>
->>>>>>> 5d54974 (team management changed)
               <Badge badgeContent={notifications.filter(n => !n.is_read).length} color="error">
                 <Notifications />
               </Badge>
             </IconButton>
-<<<<<<< HEAD
-            <IconButton onClick={(e) => setAnchorEl(e.currentTarget)} sx={{ color: theme.palette.text.primary }}>
-              <Avatar sx={{ bgcolor: 'secondary.main' }}>
-=======
             {/* Profile Avatar */}
             <IconButton onClick={(e) => setAnchorEl(e.currentTarget)}>
-              <Avatar sx={{ bgcolor: '#1e3a5f', width: 36, height: 36, fontSize: '0.9rem' }}>
->>>>>>> 5d54974 (team management changed)
+              <Avatar sx={{ bgcolor: NAV_ACTIVE_BG, width: 36, height: 36, fontSize: '0.9rem' }}>
                 {user?.username?.[0]?.toUpperCase() || 'A'}
               </Avatar>
             </IconButton>
@@ -281,10 +254,10 @@ const AdminLayout = () => {
             overflowX: 'hidden',
             boxSizing: 'border-box',
             background: '#ffffff',
-            color: '#374151',
+            color: NAV_TEXT,
             transition: 'width 0.25s ease',
             border: 'none',
-            borderRight: '1px solid #e5e7eb',
+            borderRight: '1px solid #eef0f5',
             boxShadow: railHovered && !drawerOpen
               ? '4px 0 24px rgba(0,0,0,0.10)'
               : 'none',
@@ -295,12 +268,33 @@ const AdminLayout = () => {
           },
         }}
       >
-<<<<<<< HEAD
-        {/* Menu Items */}
-        <List sx={{ px: 1.5, pt: 2, flexGrow: 1 }}>
-=======
-        <List sx={{ px: 0, pt: 1, pb: 0 }}>
->>>>>>> 5d54974 (team management changed)
+        {/* Brand row (matches reference: stacked-book icon + "EduPlatform") */}
+        {(drawerOpen || railHovered) && (
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.2,
+              px: 2.5,
+              pt: 2.5,
+              pb: 1.5,
+            }}
+          >
+            <AutoStories sx={{ color: NAV_ACTIVE_BG, fontSize: 24 }} />
+            <Typography
+              sx={{
+                fontSize: '1.05rem',
+                fontWeight: 700,
+                color: '#111827',
+                letterSpacing: -0.2,
+              }}
+            >
+              EduPlatform
+            </Typography>
+          </Box>
+        )}
+
+        <List sx={{ px: 1.5, pt: 1, pb: 0, flex: 1 }}>
           {menuItems.map((item) => {
             const isActive = location.pathname === item.path;
             const expanded = drawerOpen || railHovered;
@@ -310,31 +304,18 @@ const AdminLayout = () => {
                   onClick={() => navigate(item.path)}
                   sx={{
                     justifyContent: expanded ? 'flex-start' : 'center',
-<<<<<<< HEAD
                     px: expanded ? 2 : 0,
-                    py: 1,
-                    // borderRadius: 2,
-                    my: 0.3,
-                    backgroundColor: isActive ? theme.palette.primary.main : 'transparent',
-                    color: isActive ? theme.palette.primary.contrastText : theme.palette.text.primary,
-                    transition: 'all 0.2s ease',
-                    '&:hover': {
-                      backgroundColor: isActive ? theme.palette.primary.dark : theme.palette.action.hover,
-                      color: isActive ? theme.palette.primary.contrastText : theme.palette.primary.main,
-=======
-                    px: expanded ? 2.5 : 0,
-                    py: 1.2,
-                    borderRadius: 0,
-                    my: 0,
-                    backgroundColor: isActive ? '#1e3a5f' : 'transparent',
-                    color: isActive ? '#ffffff' : '#374151',
+                    py: 1.1,
+                    borderRadius: '12px',
+                    my: 0.4,
+                    backgroundColor: isActive ? NAV_ACTIVE_BG : 'transparent',
+                    color: isActive ? '#ffffff' : NAV_TEXT,
                     transition: 'background-color 0.15s ease',
                     '&:hover': {
-                      backgroundColor: isActive ? '#1e3a5f' : '#f1f5f9',
-                      color: isActive ? '#ffffff' : '#111827',
->>>>>>> 5d54974 (team management changed)
+                      backgroundColor: isActive ? NAV_ACTIVE_BG : NAV_HOVER_BG,
+                      color: isActive ? '#ffffff' : NAV_TEXT,
                     },
-                    minHeight: 48,
+                    minHeight: 46,
                   }}
                 >
                   <ListItemIcon
@@ -343,7 +324,7 @@ const AdminLayout = () => {
                       mr: expanded ? 1.5 : 'auto',
                       ml: expanded ? 0 : 'auto',
                       justifyContent: 'center',
-                      color: isActive ? '#ffffff' : '#6b7280',
+                      color: isActive ? '#ffffff' : NAV_ICON,
                       display: 'flex',
                       alignItems: 'center',
                       fontSize: 20,
@@ -356,14 +337,9 @@ const AdminLayout = () => {
                     <ListItemText
                       primary={item.text}
                       primaryTypographyProps={{
-<<<<<<< HEAD
-                        fontSize: '1rem',
-                        fontWeight: isActive ? 600 : 400,
-=======
-                        fontSize: '0.9rem',
+                        fontSize: '0.92rem',
                         fontWeight: isActive ? 600 : 500,
                         letterSpacing: 0,
->>>>>>> 5d54974 (team management changed)
                       }}
                     />
                   )}
@@ -373,71 +349,23 @@ const AdminLayout = () => {
           })}
         </List>
 
-<<<<<<< HEAD
-        {/* Profile at Bottom */}
-        <Box
-          sx={{
-            borderTop: `1px solid ${theme.palette.divider}`,
-            p: (drawerOpen || railHovered) ? 2 : 1,
-            transition: 'padding 0.25s ease',
-          }}
-        >
-          <Box
-            onClick={(e) => setAnchorEl(e.currentTarget)}
-            sx={{
-              display: 'flex', alignItems: 'center', gap: 1.5,
-              cursor: 'pointer', borderRadius: 2, p: 1,
-              '&:hover': { bgcolor: theme.palette.action.hover },
-              transition: 'background 0.2s',
-              justifyContent: (drawerOpen || railHovered) ? 'flex-start' : 'center',
-            }}
-          >
-            <Avatar
-              sx={{
-                bgcolor: theme.palette.primary.main,
-                width: 36, height: 36,
-                fontSize: '0.95rem', fontWeight: 700, flexShrink: 0,
-              }}
-            >
-              {user?.username?.[0]?.toUpperCase() || 'A'}
-            </Avatar>
-            {(drawerOpen || railHovered) && (
-              <>
-                <Box sx={{ minWidth: 0, flex: 1 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.3, color: theme.palette.text.primary }} noWrap>
-                    {user?.username || 'Admin'}
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: theme.palette.text.secondary, lineHeight: 1.3 }} noWrap>
-                    {user?.user_type === 'ADMIN' ? 'Admin' : user?.user_type === 'STAFF' ? 'Staff' : 'User'}
-                  </Typography>
-                </Box>
-                <KeyboardArrowDown sx={{ color: theme.palette.text.secondary, fontSize: 18 }} />
-              </>
-            )}
-          </Box>
-        </Box>
-=======
         {/* User profile at bottom */}
         {(drawerOpen || railHovered) && (
           <Box
             sx={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
               px: 2,
-              py: 1.5,
-              borderTop: '1px solid #e5e7eb',
+              py: 1.75,
+              borderTop: '1px solid #eef0f5',
               display: 'flex',
               alignItems: 'center',
               gap: 1.5,
               cursor: 'pointer',
               backgroundColor: '#ffffff',
-              '&:hover': { backgroundColor: '#f1f5f9' },
+              '&:hover': { backgroundColor: NAV_HOVER_BG },
             }}
             onClick={(e) => setAnchorEl(e.currentTarget)}
           >
-            <Avatar sx={{ bgcolor: '#1e3a5f', width: 36, height: 36, fontSize: '0.9rem', flexShrink: 0 }}>
+            <Avatar sx={{ bgcolor: NAV_ACTIVE_BG, width: 36, height: 36, fontSize: '0.9rem', flexShrink: 0 }}>
               {user?.username?.[0]?.toUpperCase() || 'A'}
             </Avatar>
             <Box sx={{ minWidth: 0, flex: 1 }}>
@@ -451,7 +379,6 @@ const AdminLayout = () => {
             <KeyboardArrowDown sx={{ color: '#9ca3af', fontSize: 18, flexShrink: 0 }} />
           </Box>
         )}
->>>>>>> 5d54974 (team management changed)
       </Drawer>
 
       {/* Main content */}

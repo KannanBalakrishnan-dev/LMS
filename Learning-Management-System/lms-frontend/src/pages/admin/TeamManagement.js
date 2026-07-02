@@ -4,19 +4,13 @@ import {
   TextField, IconButton, Tooltip, List, ListItem, ListItemText, ListItemSecondaryAction,
   Chip, FormControl, InputLabel, Select, MenuItem, Menu, OutlinedInput, Card,
   Divider, Stack, Avatar, Badge, Snackbar, Alert, Table, TableBody, TableCell, TableHead,
-<<<<<<< HEAD
-  TableRow
-=======
   TableRow, ToggleButtonGroup, ToggleButton
->>>>>>> 5d54974 (team management changed)
 } from '@mui/material';
 import {
-  Add as AddIcon, Edit as EditIcon, // eslint-disable-next-line no-unused-vars
-  Delete as DeleteIcon,
+  Add as AddIcon, Edit as EditIcon,
   PersonAdd as PersonAddIcon, PersonRemove as PersonRemoveIcon,
   School as SchoolIcon, Groups as GroupsIcon, Assignment as AssignmentIcon,
-  // eslint-disable-next-line no-unused-vars
-  MarkEmailUnread as MarkEmailUnreadIcon, Search as SearchIcon,
+  Search as SearchIcon,
   NotificationsNone as NotificationsIcon,
   MoreVert as MoreVertIcon, FilterList as FilterListIcon,
   Sort as SortIcon, KeyboardArrowDown as KeyboardArrowDownIcon,
@@ -64,6 +58,9 @@ const TeamManagement = () => {
     message: '',
     severity: 'success',
   });
+
+  // Notifications (placeholder until a real endpoint is wired up)
+  const [unreadNotificationCount] = useState(0);
 
   // Search, Filter, Sort, Pagination
   const [searchTerm, setSearchTerm] = useState('');
@@ -194,15 +191,15 @@ const TeamManagement = () => {
     setOpenDialog(true);
   };
 
-  // const handleOpenMemberDialog = async (team) => {
-  //   try {
-  //     const response = await api.get(`/teams/${team.id}/`);
-  //     setEditTeam(response.data);
-  //     setOpenMemberDialog(true);
-  //   } catch (error) {
-  //     console.error('Error fetching team details:', error);
-  //   }
-  // };
+  const handleOpenMemberDialog = async (team) => {
+    try {
+      const response = await api.get(`/teams/${team.id}/`);
+      setEditTeam(response.data);
+      setOpenMemberDialog(true);
+    } catch (error) {
+      console.error('Error fetching team details:', error);
+    }
+  };
 
   const handleOpenCourseDialog = async (team) => {
     try {
@@ -289,7 +286,6 @@ const TeamManagement = () => {
         course_ids: selectedCourses,
       });
       const response = await api.get(`/teams/${editTeam.id}/`);
-      console.log('Updated team after assigning courses:', response.data);
       setEditTeam(response.data);
       fetchTeams();
       handleCloseCourseDialog();
@@ -299,22 +295,22 @@ const TeamManagement = () => {
   };
 
   const handleDelete = async (id) => {
-  if (window.confirm('Are you sure you want to delete this team?')) {
-    try {
-      if (user?.user_type === 'ADMIN') {
-        await api.delete(`/teams/${id}/permanent-delete/`);
-        showSnackbar('Team permanently deleted successfully', 'success');
-      } else {
-       await api.delete(`/teams/${id}/`);
-        showSnackbar('Team deleted successfully', 'success');
+    if (window.confirm('Are you sure you want to delete this team?')) {
+      try {
+        if (user?.user_type === 'ADMIN') {
+          await api.delete(`/teams/${id}/permanent-delete/`);
+          showSnackbar('Team permanently deleted successfully', 'success');
+        } else {
+          await api.delete(`/teams/${id}/`);
+          showSnackbar('Team deleted successfully', 'success');
+        }
+        fetchTeams();
+      } catch (error) {
+        showSnackbar('Failed to delete team', 'error');
       }
-      fetchTeams();
-    } catch (error) {
-      // console.error('Error deleting team:', error);
-      showSnackbar('Failed to delete team', 'error');
     }
-  }
-};
+  };
+
   const showSnackbar = (message, severity = 'success') => {
     setSnackbar({ open: true, message, severity });
   };
@@ -402,133 +398,6 @@ const TeamManagement = () => {
     handleCloseMenu();
   };
 
-<<<<<<< HEAD
-  const unreadNotificationCount = 0; // wire to real notification state if/when available
-=======
-  // eslint-disable-next-line no-unused-vars
-  const columns = [
-    { 
-      field: 'name', 
-      headerName: 'Team Name', 
-      flex: 1,
-      renderCell: (params) => (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Avatar 
-            sx={{ 
-              width: 32, 
-              height: 32, 
-              bgcolor: '#1e40af',
-              fontSize: '0.875rem'
-            }}
-          >
-            {params.value.charAt(0).toUpperCase()}
-          </Avatar>
-          <Typography variant="body2" fontWeight="medium">
-            {params.value}
-          </Typography>
-        </Box>
-      )
-    },
-    { 
-      field: 'description', 
-      headerName: 'Description', 
-      flex: 2,
-      renderCell: (params) => (
-        <Typography 
-          variant="body2" 
-          color="text.secondary"
-          sx={{ 
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap'
-          }}
-        >
-          {params.value || 'No description'}
-        </Typography>
-      )
-    },
-    {
-      field: 'members_count',
-      headerName: 'Members',
-      flex: 1,
-      renderCell: (params) => (
-        <Badge 
-          badgeContent={params.row.members_count} 
-          color="primary"
-          sx={{ cursor: 'pointer', '& .MuiBadge-badge': { backgroundColor: '#1e40af' } }}
-          onClick={() => handleOpenMemberDialog(params.row)}
-        >
-          <Chip
-            icon={<GroupsIcon />}
-            label="Members"
-            variant="outlined"
-            size="small"
-            clickable
-            sx={{ 
-              borderRadius: '8px',
-              borderColor: '#1e40af',
-              color: '#1e40af',
-              '&:hover': {
-                backgroundColor: '#f8fafc',
-                borderColor: '#1e40af'
-              }
-            }}
-          />
-        </Badge>
-      ),
-    },
-    {
-      field: 'courses',
-      headerName: 'Assigned Courses',
-      flex: 3,
-      sortable: false,
-      filterable: false,
-      renderCell: (params) => {
-        const assignedCourses = params.row.courses || [];
-        return (
-          <Box 
-            sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: 1, 
-              flexWrap: 'wrap',
-              width: '100%',
-              py: 1
-            }}
-          >
-            {assignedCourses.length > 0 && (
-              <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'nowrap', gap: 0.5, maxWidth: 220, overflow: 'hidden' }}>
-                <Chip
-                  key={assignedCourses[0].id}
-                  label={assignedCourses[0].title}
-                  icon={<SchoolIcon />}
-                  size="small"
-                  variant="filled"
-                  color="secondary"
-                  sx={{ 
-                    maxWidth: 120,
-                    borderRadius: '8px',
-                    fontSize: '0.75rem',
-                    textOverflow: 'ellipsis',
-                    overflow: 'hidden',
-                    whiteSpace: 'nowrap',
-                  }}
-                />
-                {assignedCourses.length > 1 && (
-                  <Chip
-                    label={`+${assignedCourses.length - 1} more`}
-                    size="small"
-                    variant="outlined"
-                    sx={{ 
-                      borderRadius: '8px',
-                      fontSize: '0.7rem'
-                    }}
-                  />
-                )}
-              </Stack>
-            )}
->>>>>>> 5d54974 (team management changed)
-
   const statusLabel = STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label || 'All Status';
   const sortLabel = SORT_OPTIONS.find((o) => o.value === sortBy)?.label || 'Sort by: Newest';
 
@@ -587,13 +456,8 @@ const TeamManagement = () => {
               borderRadius: '12px',
               textTransform: 'none',
               px: 3,
-<<<<<<< HEAD
-              backgroundColor: '#111827',
-              '&:hover': { backgroundColor: '#000000' }
-=======
               backgroundColor: '#312E81',
               '&:hover': { backgroundColor: '#27235f' }
->>>>>>> 5d54974 (team management changed)
             }}
           >
             Create Team
@@ -625,38 +489,10 @@ const TeamManagement = () => {
         ].map((stat, idx) => {
           const IconComponent = stat.icon;
           return (
-<<<<<<< HEAD
-            <Card
-              key={idx}
-              elevation={0}
-              sx={{
-                flex: 1,
-                border: '1px solid #e5e7eb',
-                // borderRadius: 3,
-                p: 2.5,
-                bgcolor: '#ffffff'
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
-                <Box
-                  sx={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: '50%',
-                    bgcolor: stat.iconBg,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0
-                  }}
-                >
-                  <IconComponent sx={{ fontSize: 26, color: stat.iconColor }} />
-=======
             <Card key={idx} elevation={0} sx={{ flex: 1, border: '1px solid #e2e8f0', borderRadius: '10px', p: 2, bgcolor: '#ffffff', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
                 <Box sx={{ width: 64, height: 36, borderRadius: '999px', bgcolor: stat.iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <IconComponent sx={{ fontSize: 20, color: stat.iconColor }} />
->>>>>>> 5d54974 (team management changed)
                 </Box>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -674,19 +510,11 @@ const TeamManagement = () => {
         })}
       </Box>
 
-<<<<<<< HEAD
-      {/* FILTER & SORT ROW - pill button + menu */}
+      {/* FILTER & SORT ROW */}
       <Box
         sx={{
           display: 'flex',
-          gap: 1.5,
-=======
-            {/* FILTER & SORT ROW */}
-      <Box 
-        sx={{ 
-          display: 'flex', 
           gap: 2,
->>>>>>> 5d54974 (team management changed)
           mb: 3,
           alignItems: 'center'
         }}
@@ -839,7 +667,10 @@ const TeamManagement = () => {
 
                   {/* MEMBERS */}
                   <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Box
+                      onClick={() => handleOpenMemberDialog(team)}
+                      sx={{ display: 'flex', alignItems: 'center', gap: 1.5, cursor: 'pointer' }}
+                    >
                       <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="#312E81">
                           <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
@@ -999,7 +830,7 @@ const TeamManagement = () => {
           </TableBody>
         </Table>
 
-        {/* FOOTER - Pagination Info & Controls (inside the table card, matching mockup) */}
+        {/* FOOTER - Pagination Info & Controls (inside the table card) */}
         <Box
           sx={{
             display: 'flex',
@@ -1112,50 +943,7 @@ const TeamManagement = () => {
         </Box>
       </Paper>
 
-<<<<<<< HEAD
-=======
-      {/* FOOTER - Pagination Info & Controls */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2, px: 1, py: 1.5, borderTop: '1px solid #e5e7eb' }}>
-        <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
-          Showing {filteredTeams.length === 0 ? 0 : page * rowsPerPage + 1} to {Math.min((page + 1) * rowsPerPage, filteredTeams.length)} of {filteredTeams.length} teams
-        </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {/* Prev button */}
-          <IconButton size="small" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
-            sx={{ width: 28, height: 28, border: '1px solid #e5e7eb', borderRadius: 1, color: page === 0 ? '#d1d5db' : '#374151' }}>
-            <Typography sx={{ fontSize: '0.9rem', lineHeight: 1 }}>‹</Typography>
-          </IconButton>
-          {/* Page number buttons */}
-          {Array.from({ length: Math.ceil(filteredTeams.length / rowsPerPage) }, (_, i) => (
-            <IconButton key={i} size="small" onClick={() => setPage(i)}
-              sx={{ width: 28, height: 28, borderRadius: 1, border: page === i ? 'none' : '1px solid #e5e7eb',
-                bgcolor: page === i ? '#312E81' : '#fff', color: page === i ? '#fff' : '#374151',
-                fontSize: '0.8rem', fontWeight: page === i ? 'bold' : 'normal',
-                '&:hover': { bgcolor: page === i ? '#27235f' : '#f3f4f6' } }}>
-              {i + 1}
-            </IconButton>
-          ))}
-          {/* Next button */}
-          <IconButton size="small" onClick={() => setPage(p => Math.min(Math.ceil(filteredTeams.length / rowsPerPage) - 1, p + 1))}
-            disabled={page >= Math.ceil(filteredTeams.length / rowsPerPage) - 1}
-            sx={{ width: 28, height: 28, border: '1px solid #e5e7eb', borderRadius: 1, color: page >= Math.ceil(filteredTeams.length / rowsPerPage) - 1 ? '#d1d5db' : '#374151' }}>
-            <Typography sx={{ fontSize: '0.9rem', lineHeight: 1 }}>›</Typography>
-          </IconButton>
-          {/* Rows per page */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 1 }}>
-            <Typography variant="caption" color="text.secondary">Rows per page:</Typography>
-            <Select value={rowsPerPage} onChange={e => { setRowsPerPage(+e.target.value); setPage(0); }} size="small"
-              sx={{ height: 26, fontSize: '0.8rem', '.MuiOutlinedInput-notchedOutline': { borderColor: '#e5e7eb' }, minWidth: 52 }}>
-              <MenuItem value={5}>5</MenuItem>
-              <MenuItem value={10}>10</MenuItem>
-              <MenuItem value={25}>25</MenuItem>
-            </Select>
-          </Box>
-        </Box>
-      </Box>
-
->>>>>>> 5d54974 (team management changed)
-      {/* Team Dialog - Enhanced Material Design */}
+      {/* Team Dialog */}
       <Dialog
         open={openDialog}
         onClose={handleCloseDialog}
@@ -1286,7 +1074,7 @@ const TeamManagement = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Member Dialog - Enhanced */}
+      {/* Member Dialog */}
       <Dialog
         open={openMemberDialog}
         onClose={handleCloseMemberDialog}
@@ -1373,9 +1161,9 @@ const TeamManagement = () => {
                 >
                   {users
                     .filter((u) => !editTeam?.members?.some((m) => m.id === u.id))
-                    .map((user) => (
-                      <MenuItem key={user.id} value={user.id}>
-                        {user.username}
+                    .map((u) => (
+                      <MenuItem key={u.id} value={u.id}>
+                        {u.username}
                       </MenuItem>
                     ))}
                 </Select>
@@ -1411,7 +1199,7 @@ const TeamManagement = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Assign Courses Dialog - Enhanced */}
+      {/* Assign Courses Dialog */}
       <Dialog
         open={openCourseDialog}
         onClose={handleCloseCourseDialog}
@@ -1455,8 +1243,7 @@ const TeamManagement = () => {
                         label={course.title}
                         icon={<SchoolIcon />}
                         size="small"
-                        sx={{ borderRadius: '12px', '& .MuiChip-icon': {color: '#0000ff'}
-                      }}
+                        sx={{ borderRadius: '12px', '& .MuiChip-icon': { color: '#0000ff' } }}
                       />
                     ) : null;
                   })}
@@ -1533,25 +1320,24 @@ const TeamManagement = () => {
       </Dialog>
 
       {/* Snackbar for notifications */}
-     <Snackbar
-  open={snackbar.open}
-  autoHideDuration={5000}
-  onClose={handleCloseSnackbar}
-  anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
->
-  <Alert
-    onClose={handleCloseSnackbar}
-    severity={snackbar.severity}
-    // variant="filled"
-    sx={{
-      width: '100%',
-      minWidth: 350,
-      fontWeight: 600
-    }}
-  >
-    {snackbar.message}
-  </Alert>
-</Snackbar>
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={5000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={snackbar.severity}
+          sx={{
+            width: '100%',
+            minWidth: 350,
+            fontWeight: 600
+          }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
