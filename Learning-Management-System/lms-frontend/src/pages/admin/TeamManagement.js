@@ -14,7 +14,8 @@ import {
   NotificationsNone as NotificationsIcon,
   MoreVert as MoreVertIcon, FilterList as FilterListIcon,
   Sort as SortIcon, KeyboardArrowDown as KeyboardArrowDownIcon,
-  ChevronLeft as ChevronLeftIcon, ChevronRight as ChevronRightIcon
+  ChevronLeft as ChevronLeftIcon, ChevronRight as ChevronRightIcon,
+  ArrowUpward as ArrowUpwardIcon, ArrowDownward as ArrowDownwardIcon
 } from '@mui/icons-material';
 import api from '../../api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -45,6 +46,36 @@ const SORT_OPTIONS = [
   { value: 'oldest', label: 'Sort by: Oldest' },
   { value: 'name', label: 'Sort by: Name (A-Z)' },
 ];
+
+// ---------------------------------------------------------------------------
+// Real percentage-change calculation: previous month vs this month.
+// Same concept used on the Admin Dashboard's stat cards.
+//   prevMonthValue: total as of the end of last month (0 if no data exists for it)
+//   thisMonthValue: current running total for this month
+// Rules:
+//   - normal case: standard % change formula
+//   - previous month = 0, this month > 0  -> +100% (went from nothing to something)
+//   - previous month = 0, this month = 0  -> 0% (no change, nothing to report)
+// ---------------------------------------------------------------------------
+const computeChange = (prevMonthValue, thisMonthValue) => {
+  if (thisMonthValue === undefined || thisMonthValue === null) return null;
+
+  const prev = prevMonthValue ?? 0;
+  const current = thisMonthValue;
+
+  if (prev === 0) {
+    if (current === 0) return { pct: 0, label: '0.0%', isPositive: true };
+    return { pct: 100, label: '+100.0%', isPositive: true };
+  }
+
+  const pct = ((current - prev) / prev) * 100;
+  const sign = pct > 0 ? '+' : ''; // negative numbers already carry their own "-" from toFixed
+  return {
+    pct,
+    label: `${sign}${pct.toFixed(1)}%`,
+    isPositive: pct >= 0,
+  };
+};
 
 const TeamManagement = () => {
   const [teams, setTeams] = useState([]);
@@ -137,6 +168,57 @@ const TeamManagement = () => {
   }, [filteredTeams, page, rowsPerPage]);
 
   const pageCount = Math.max(1, Math.ceil(filteredTeams.length / rowsPerPage));
+
+  // ---------------------------------------------------------------------------
+  // Month-over-month stats for the 4 summary cards.
+  //
+  // "Total Teams" and "Active Teams" can be computed for real right now, because
+  // each team has an `id` we can use as a rough proxy for creation order, and
+  // (when the backend sends it) a `created_at` field lets us split teams into
+  // "existed before this month" vs "exists now".
+  //
+  // "Total Members" and "Courses Assigned" are aggregates across teams
+  // (members_count / courses.length) and the backend doesn't currently send a
+  // join date per member or per course assignment, so there's no way to know
+  // which of those were added last month vs this month. Until that data exists,
+  // those two fall back to comparing against a 0 baseline — same convention as
+  // the Admin Dashboard cards: nothing to compare against yet -> "+100%" if
+  // there's any current activity, "0%" if there's none.
+  //
+  // Once the backend adds e.g. `created_at` on team-membership and course
+  // assignment records, swap the `?? 0` fallbacks below for real prev-month
+  // counts and everything downstream (computeChange, the arrows, the colors)
+  // keeps working exactly as-is.
+  // ---------------------------------------------------------------------------
+  const teamStats = useMemo(() => {
+    const now = new Date();
+    const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const teamsBeforeThisMonth = teams.filter(
+      (t) => t.created_at && new Date(t.created_at) < startOfThisMonth
+    );
+    // If no team has a created_at field yet, we have no real baseline — fall back to 0
+    // (same "no data yet" convention as everywhere else), rather than silently miscounting.
+    const hasCreatedAtData = teams.some((t) => !!t.created_at);
+
+    const totalTeamsThisMonth = teams.length;
+    const totalTeamsPrevMonth = hasCreatedAtData ? teamsBeforeThisMonth.length : 0;
+
+    const activeTeamsThisMonth = teams.filter((t) => t.is_active === true || t.is_active === 1).length;
+    const activeTeamsPrevMonth = hasCreatedAtData
+      ? teamsBeforeThisMonth.filter((t) => t.is_active === true || t.is_active === 1).length
+      : 0;
+
+    const totalMembersThisMonth = teams.reduce((sum, t) => sum + (t.members_count || 0), 0);
+    const coursesAssignedThisMonth = teams.reduce((sum, t) => sum + (t.courses?.length || 0), 0);
+
+    return {
+      totalTeams: { value: totalTeamsThisMonth, prevMonth: totalTeamsPrevMonth, thisMonth: totalTeamsThisMonth },
+      totalMembers: { value: totalMembersThisMonth, prevMonth: 0, thisMonth: totalMembersThisMonth },
+      coursesAssigned: { value: coursesAssignedThisMonth, prevMonth: 0, thisMonth: coursesAssignedThisMonth },
+      activeTeams: { value: activeTeamsThisMonth, prevMonth: activeTeamsPrevMonth, thisMonth: activeTeamsThisMonth },
+    };
+  }, [teams]);
 
   const fetchTeams = async () => {
     try {
@@ -482,12 +564,15 @@ const TeamManagement = () => {
       {/* STATS ROW - 4 Cards */}
       <Box sx={{ display: 'flex', gap: 1.5, mb: 4 }}>
         {[
-          { label: 'Total Teams', value: teams.length, trend: '+14%', icon: GroupsIcon, iconColor: '#4f46e5', iconBg: '#ede9fe' },
-          { label: 'Total Members', value: teams.reduce((sum, t) => sum + (t.members_count || 0), 0), trend: '+21%', icon: PersonAddIcon, iconColor: '#16a34a', iconBg: '#dcfce7' },
-          { label: 'Courses Assigned', value: teams.reduce((sum, t) => sum + (t.courses?.length || 0), 0), trend: '+8%', icon: SchoolIcon, iconColor: '#2563eb', iconBg: '#dbeafe' },
-          { label: 'Active Teams', value: teams.filter(t => t.is_active === true || t.is_active === 1).length, trend: '+12%', icon: AssignmentIcon, iconColor: '#d97706', iconBg: '#fef3c7' },
+          { label: 'Total Teams', ...teamStats.totalTeams, icon: GroupsIcon, iconColor: '#4f46e5', iconBg: '#ede9fe' },
+          { label: 'Total Members', ...teamStats.totalMembers, icon: PersonAddIcon, iconColor: '#16a34a', iconBg: '#dcfce7' },
+          { label: 'Courses Assigned', ...teamStats.coursesAssigned, icon: SchoolIcon, iconColor: '#2563eb', iconBg: '#dbeafe' },
+          { label: 'Active Teams', ...teamStats.activeTeams, icon: AssignmentIcon, iconColor: '#d97706', iconBg: '#fef3c7' },
         ].map((stat, idx) => {
           const IconComponent = stat.icon;
+          const change = computeChange(stat.prevMonth, stat.thisMonth);
+          const trendColor = change ? (change.isPositive ? '#16a34a' : '#dc2626') : '#9ca3af';
+          const TrendArrow = change && !change.isPositive ? ArrowDownwardIcon : ArrowUpwardIcon;
           return (
             <Card key={idx} elevation={0} sx={{ flex: 1, border: '1px solid #e2e8f0', borderRadius: '10px', p: 2, bgcolor: '#ffffff', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
@@ -497,7 +582,12 @@ const TeamManagement = () => {
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <Typography sx={{ fontSize: '0.78rem', color: '#6b7280', fontWeight: 500 }}>{stat.label}</Typography>
-                    <Typography sx={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: 700, whiteSpace: 'nowrap' }}>{stat.trend} ↑</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                      <TrendArrow sx={{ fontSize: 13, color: trendColor }} />
+                      <Typography sx={{ fontSize: '0.75rem', color: trendColor, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                        {change ? change.label : '0.0%'}
+                      </Typography>
+                    </Box>
                   </Box>
                   <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', mt: 0.25 }}>
                     <Typography sx={{ fontSize: '1.6rem', fontWeight: 800, color: '#111827', lineHeight: 1.2 }}>{stat.value}</Typography>

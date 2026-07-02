@@ -202,7 +202,7 @@ const AdminLayout = () => {
               onMouseLeave={() => setLogoHovered(false)}
               onClick={handleDrawerToggle}
               sx={{
-                mr: 2,
+                mr: 1,
                 width: 44,
                 height: 44,
                 display: 'flex',
@@ -219,6 +219,22 @@ const AdminLayout = () => {
                 : <AutoStories sx={{ color: NAV_ACTIVE_BG, fontSize: 28 }} />}
             </Box>
           </Tooltip>
+
+          {/* Brand (moved here from sidebar) */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mr: 2 }}>
+            {/* <AutoStories sx={{ color: NAV_ACTIVE_BG, fontSize: 24 }} /> */}
+            <Typography
+              sx={{
+                fontSize: '1.05rem',
+                fontWeight: 700,
+                color: '#111827',
+                letterSpacing: -0.2,
+              }}
+            >
+              EduPlatform
+            </Typography>
+          </Box>
+
           <Box sx={{ flexGrow: 1 }} />
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             {/* Notifications */}
@@ -268,33 +284,7 @@ const AdminLayout = () => {
           },
         }}
       >
-        {/* Brand row (matches reference: stacked-book icon + "EduPlatform") */}
-        {(drawerOpen || railHovered) && (
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1.2,
-              px: 2.5,
-              pt: 2.5,
-              pb: 1.5,
-            }}
-          >
-            <AutoStories sx={{ color: NAV_ACTIVE_BG, fontSize: 24 }} />
-            <Typography
-              sx={{
-                fontSize: '1.05rem',
-                fontWeight: 700,
-                color: '#111827',
-                letterSpacing: -0.2,
-              }}
-            >
-              EduPlatform
-            </Typography>
-          </Box>
-        )}
-
-        <List sx={{ px: 1.5, pt: 1, pb: 0, flex: 1 }}>
+        <List sx={{ px: 1.5, pt: 2, pb: 0, flex: 1 }}>
           {menuItems.map((item) => {
             const isActive = location.pathname === item.path;
             const expanded = drawerOpen || railHovered;

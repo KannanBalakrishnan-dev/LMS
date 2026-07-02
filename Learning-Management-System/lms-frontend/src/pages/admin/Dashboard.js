@@ -25,6 +25,36 @@ import {
 } from '@mui/icons-material';
 import api from '../../api';
 
+// ---------------------------------------------------------------------------
+// DEMO MODE — flip this to `true` to prove the % calculation is real and not
+// a fixed number. It bypasses the API and feeds in sample prev-month/this-month
+// numbers so you can see computeChange() produce different results for each card:
+//   Total Users:        8  -> 12   =>  +50.0%  (increase)
+//   Active Courses:      5 ->  4   =>  -20.0%  (decrease)
+//   Total Teams:          3 ->  3  =>    0.0%  (no change)
+//   Total Enrollments:  20 -> 34   =>  +70.0%  (increase)
+// Set back to `false` for production — real data comes from the API as normal.
+// ---------------------------------------------------------------------------
+const DEMO_MODE = false;
+
+const DEMO_STATS = {
+  totalUsers: 12,
+  totalUsersPrevMonth: 8,
+  totalUsersThisMonth: 12,
+  activeCourses: 4,
+  activeCoursesPrevMonth: 5,
+  activeCoursesThisMonth: 4,
+  totalTeams: 3,
+  totalTeamsPrevMonth: 3,
+  totalTeamsThisMonth: 3,
+  totalEnrollments: 34,
+  totalEnrollmentsPrevMonth: 20,
+  totalEnrollmentsThisMonth: 34,
+  completionRate: 62,
+  recentEnrollments: [],
+  recentCompletions: [],
+};
+
 // ---- tiny inline sparkline (no chart library dependency) ----
 const Sparkline = ({ points = [], color = '#16a34a' }) => {
   if (!points.length) return null;
@@ -44,52 +74,95 @@ const Sparkline = ({ points = [], color = '#16a34a' }) => {
   );
 };
 
+// ---- Real percentage-change calculation: previous month vs this month ----
+// prevMonthValue: total as of the end of last month (0 if no data exists for it)
+// thisMonthValue: current running total for this month
+// Returns null only when thisMonthValue itself is missing entirely.
+const computeChange = (prevMonthValue, thisMonthValue) => {
+  if (thisMonthValue === undefined || thisMonthValue === null) return null;
+
+  const prev = prevMonthValue ?? 0;
+  const current = thisMonthValue;
+
+  // No previous month on record: everything this month is "growth from zero".
+  // current = 0  -> 0%   (nothing happened, nothing to report)
+  // current > 0  -> 100% (went from having none to having some — a full increase)
+  if (prev === 0) {
+    if (current === 0) return { pct: 0, label: '0.0%', isPositive: true };
+    return { pct: 100, label: '+100.0%', isPositive: true };
+  }
+
+  const pct = ((current - prev) / prev) * 100;
+  const sign = pct > 0 ? '+' : ''; // negative numbers already carry their own "-" from toFixed
+  return {
+    pct,
+    label: `${sign}${pct.toFixed(1)}%`,
+    isPositive: pct >= 0,
+  };
+};
+
 const STAT_CARD_META = {
   totalUsers: {
     title: 'Total Users',
     icon: <Person sx={{ fontSize: 20 }} />,
     iconBg: '#e6f4ea',
     iconColor: '#1a7f3c',
-    trendColor: '#16a34a',
-    trendBg: '#e6f4ea',
-    // Placeholder trend data — wire up to real historical stats when available
-    sparkline: [3, 5, 4, 7, 6, 9, 8],
-    changeLabel: '+12.5%',
+    positiveTrendColor: '#16a34a',
+    positiveTrendBg: '#e6f4ea',
   },
   activeCourses: {
     title: 'Active Courses',
     icon: <MenuBook sx={{ fontSize: 20 }} />,
     iconBg: '#e8f0fe',
     iconColor: '#1a56db',
-    trendColor: '#2563eb',
-    trendBg: '#e8f0fe',
-    sparkline: [4, 4, 5, 4, 6, 5, 6],
-    changeLabel: '+3.2%',
+    positiveTrendColor: '#2563eb',
+    positiveTrendBg: '#e8f0fe',
   },
   totalTeams: {
     title: 'Total Teams',
     icon: <Groups sx={{ fontSize: 20 }} />,
     iconBg: '#fdeee3',
     iconColor: '#c2570b',
-    trendColor: '#ea7c1e',
-    trendBg: '#fdeee3',
-    sparkline: [2, 3, 3, 5, 4, 7, 8],
-    changeLabel: '+18.1%',
+    positiveTrendColor: '#ea7c1e',
+    positiveTrendBg: '#fdeee3',
   },
   totalEnrollments: {
     title: 'Total Enrollments',
     icon: <Assignment sx={{ fontSize: 20 }} />,
     iconBg: '#ede9fe',
     iconColor: '#5b21b6',
-    trendColor: '#7c3aed',
-    trendBg: '#ede9fe',
-    sparkline: [5, 6, 6, 7, 9, 8, 10],
-    changeLabel: '+24.0%',
+    positiveTrendColor: '#7c3aed',
+    positiveTrendBg: '#ede9fe',
   },
 };
 
-const StatCard = ({ statKey, value }) => {
+// Negative-trend palette shared across all cards — a metric going down should always read as a warning,
+// regardless of the card's brand color.
+const NEGATIVE_TREND_COLOR = '#dc2626';
+const NEGATIVE_TREND_BG = '#fdecea';
+
+const StatCard = ({ statKey, value, prevMonthValue, thisMonthValue }) => {
   const meta = STAT_CARD_META[statKey];
+
+  // Fallback: if the backend hasn't started sending explicit *PrevMonth / *ThisMonth
+  // fields yet, treat the card's current total as "this month" and assume 0 for last
+  // month, so we still get a real, calculated percentage instead of "N/A".
+  // Once the backend sends real prevMonthValue/thisMonthValue, those take over automatically.
+  const effectiveThisMonth = thisMonthValue ?? value ?? 0;
+  const effectivePrevMonth = prevMonthValue ?? 0;
+
+  const change = computeChange(effectivePrevMonth, effectiveThisMonth);
+
+  const trendColor = change
+    ? (change.isPositive ? meta.positiveTrendColor : NEGATIVE_TREND_COLOR)
+    : meta.positiveTrendColor;
+  const trendBg = change
+    ? (change.isPositive ? meta.positiveTrendBg : NEGATIVE_TREND_BG)
+    : meta.positiveTrendBg;
+
+  // Two-point sparkline: last month -> this month, e.g. [0, 1] or [6, 8].
+  const sparklinePoints = [effectivePrevMonth, effectiveThisMonth];
+
   return (
     <Card
       elevation={0}
@@ -119,13 +192,13 @@ const StatCard = ({ statKey, value }) => {
             {meta.icon}
           </Box>
           <Stack alignItems="flex-end" spacing={0.5}>
-            <Sparkline points={meta.sparkline} color={meta.trendColor} />
+            <Sparkline points={sparklinePoints} color={trendColor} />
             <Chip
-              label={meta.changeLabel}
+              label={change ? change.label : '0.0%'}
               size="small"
               sx={{
-                bgcolor: meta.trendBg,
-                color: meta.trendColor,
+                bgcolor: trendBg,
+                color: trendColor,
                 fontWeight: 700,
                 fontSize: '0.7rem',
                 height: 20,
@@ -290,6 +363,13 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     const fetchDashboardStats = async () => {
+      if (DEMO_MODE) {
+        // Skip the real API call entirely and use the sample dataset above,
+        // so you can see computeChange() produce real, varying percentages.
+        setStats(DEMO_STATS);
+        setLoading(false);
+        return;
+      }
       try {
         const response = await api.get('/admin/dashboard-stats/');
         setStats(response.data);
@@ -345,18 +425,72 @@ const AdminDashboard = () => {
   return (
     <Box sx={{ p: { xs: 2, md: 3 }, bgcolor: '#f6f7fb' }}>
       {/* Stats Cards */}
+      {/*
+        Each StatCard compares THIS MONTH's total against LAST MONTH's total (month-over-month).
+
+        Preferred backend shape (see /admin/dashboard-stats/) — once these fields exist,
+        the cards automatically use them instead of the fallback below:
+        {
+          totalUsers: 128,
+          totalUsersPrevMonth: 110,
+          totalUsersThisMonth: 128,
+          activeCourses: 12,
+          activeCoursesPrevMonth: 10,
+          activeCoursesThisMonth: 12,
+          totalTeams: 8,
+          totalTeamsPrevMonth: 6,
+          totalTeamsThisMonth: 8,
+          totalEnrollments: 340,
+          totalEnrollmentsPrevMonth: 280,
+          totalEnrollmentsThisMonth: 340,
+          ...
+        }
+
+        FALLBACK (used right now, since the backend doesn't send *PrevMonth/*ThisMonth yet):
+        StatCard treats the plain total (`value`) as "this month" and assumes 0 for
+        "last month" when no explicit fields are passed. That produces exactly the
+        behavior you want with today's data:
+          - Total Users = 1   -> no prior baseline, 1 this month -> "+100.0%"
+          - Active Courses = 0 -> nothing this month either -> "0.0%"
+          - Total Teams = 0    -> "0.0%"
+          - Total Enrollments = 0 -> "0.0%"
+        As soon as real prevMonth/thisMonth numbers start coming from the backend
+        (e.g. 6 last month -> 8 this month), the same computeChange() logic will
+        automatically calculate the real increase/decrease (e.g. "+33.3%") and the
+        sparkline will plot that real two-point trend instead of [0, value].
+      */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <StatCard statKey="totalUsers" value={stats.totalUsers ?? 0} />
+          <StatCard
+            statKey="totalUsers"
+            value={stats.totalUsers ?? 0}
+            prevMonthValue={stats.totalUsersPrevMonth}
+            thisMonthValue={stats.totalUsersThisMonth}
+          />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <StatCard statKey="activeCourses" value={stats.activeCourses ?? 0} />
+          <StatCard
+            statKey="activeCourses"
+            value={stats.activeCourses ?? 0}
+            prevMonthValue={stats.activeCoursesPrevMonth}
+            thisMonthValue={stats.activeCoursesThisMonth}
+          />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <StatCard statKey="totalTeams" value={stats.totalTeams ?? 0} />
+          <StatCard
+            statKey="totalTeams"
+            value={stats.totalTeams ?? 0}
+            prevMonthValue={stats.totalTeamsPrevMonth}
+            thisMonthValue={stats.totalTeamsThisMonth}
+          />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <StatCard statKey="totalEnrollments" value={stats.totalEnrollments ?? 0} />
+          <StatCard
+            statKey="totalEnrollments"
+            value={stats.totalEnrollments ?? 0}
+            prevMonthValue={stats.totalEnrollmentsPrevMonth}
+            thisMonthValue={stats.totalEnrollmentsThisMonth}
+          />
         </Grid>
       </Grid>
 
