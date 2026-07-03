@@ -44,8 +44,8 @@ const collapsedWidth = 64;
 
 // ---- Palette to match the reference sidebar (navy/indigo pill nav) ----
 const NAV_ACTIVE_BG = '#1e1b4b';
-const NAV_TEXT = '#312e81';
-const NAV_ICON = '#4c4899';
+const NAV_TEXT = '#1c2061';
+const NAV_ICON = '#1c2061';
 const NAV_HOVER_BG = '#f1f0fb';
 
 // ---- motion-wrapped MUI primitives ----

@@ -15,10 +15,24 @@ import {
   MenuItem,
   Select,
   FormControl,
+  Divider,
 } from "@mui/material";
 import { useAuth } from "../../contexts/AuthContext";
-import { Close, Visibility, VisibilityOff } from "@mui/icons-material";
+import { Close, Visibility, VisibilityOff, Email as EmailIcon, ArrowBack } from "@mui/icons-material";
 import registerPageImage from "../../assets/Start_Convert_1.png";
+
+// ---- Backend config ----
+// Adjust these two if your urls.py registers them under different paths/prefixes.
+const API_BASE = "/api";
+const SEND_OTP_URL = `${API_BASE}/send-otp/`;
+const VERIFY_OTP_URL = `${API_BASE}/verify-otp/`;
+const GOOGLE_LOGIN_URL = `${API_BASE}/google-login/`;
+
+// Must match the client ID hardcoded in google_login() on the backend.
+const GOOGLE_CLIENT_ID = "145540367220-r74qnsn2mdghon1i99f5rav9prhtiu3k.apps.googleusercontent.com";
+
+const OTP_LENGTH = 6;
+const RESEND_SECONDS = 30;
 
 const Register = ({ onClose }) => {
   const [formData, setFormData] = useState({
@@ -43,6 +57,224 @@ const Register = ({ onClose }) => {
   const { register, setUser } = useAuth();
   const navigate = useNavigate();
   const postRegisterTimeoutRef = useRef(null);
+
+  // ---- Continue with Email (OTP) flow state ----
+  const [authMode, setAuthMode] = useState("form"); // "form" | "email-otp"
+  const [otpStep, setOtpStep] = useState("enter-email"); // "enter-email" | "enter-otp" | "verified"
+  const [otpEmail, setOtpEmail] = useState("");
+  const [otpDigits, setOtpDigits] = useState(Array(OTP_LENGTH).fill(""));
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState("");
+  const [resendTimer, setResendTimer] = useState(0);
+  const otpInputRefs = useRef([]);
+  const resendIntervalRef = useRef(null);
+
+  // ---- Google Sign-In ----
+  const googleButtonRef = useRef(null);
+  const [googleReady, setGoogleReady] = useState(false);
+
+  const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+
+  const persistAuthAndRedirect = (data) => {
+    // Backend returns { token, refresh, user }
+    if (data.token) localStorage.setItem("access_token", data.token);
+    if (data.refresh) localStorage.setItem("refresh_token", data.refresh);
+    setUser(data.user || null);
+
+    postRegisterTimeoutRef.current = setTimeout(() => {
+      if (onClose) onClose();
+      navigate("/dashboard", { replace: true });
+    }, 1000);
+  };
+
+  // ---- Load Google Identity Services script + render button ----
+  useEffect(() => {
+    if (window.google && window.google.accounts) {
+      setGoogleReady(true);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => setGoogleReady(true);
+    document.body.appendChild(script);
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!googleReady || authMode !== "form" || !googleButtonRef.current) return;
+
+    window.google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleGoogleCredentialResponse,
+    });
+
+    window.google.accounts.id.renderButton(googleButtonRef.current, {
+      theme: "outline",
+      size: "large",
+      width: 240,
+      text: "continue_with",
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [googleReady, authMode]);
+
+  const handleGoogleCredentialResponse = async (response) => {
+    setLoading(true);
+    try {
+      const res = await fetch(GOOGLE_LOGIN_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential: response.credential }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error || "Google sign-in failed.");
+      }
+      // google_login() returns { access, refresh } (SimpleJWT default keys)
+      if (data.access) localStorage.setItem("access_token", data.access);
+      if (data.refresh) localStorage.setItem("refresh_token", data.refresh);
+      setPopup({ open: true, message: "Signed in with Google!", severity: "success" });
+      postRegisterTimeoutRef.current = setTimeout(() => {
+        if (onClose) onClose();
+        navigate("/dashboard", { replace: true });
+      }, 800);
+    } catch (err) {
+      setPopup({ open: true, message: err.message || "Google sign-in failed.", severity: "error" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (resendIntervalRef.current) clearInterval(resendIntervalRef.current);
+    };
+  }, []);
+
+  const startResendTimer = () => {
+    setResendTimer(RESEND_SECONDS);
+    if (resendIntervalRef.current) clearInterval(resendIntervalRef.current);
+    resendIntervalRef.current = setInterval(() => {
+      setResendTimer((prev) => {
+        if (prev <= 1) {
+          clearInterval(resendIntervalRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const resetOtpFlow = () => {
+    setAuthMode("form");
+    setOtpStep("enter-email");
+    setOtpEmail("");
+    setOtpDigits(Array(OTP_LENGTH).fill(""));
+    setOtpError("");
+    setResendTimer(0);
+    if (resendIntervalRef.current) clearInterval(resendIntervalRef.current);
+  };
+
+  const handleSendOtp = async () => {
+    setOtpError("");
+    if (!isValidEmail(otpEmail)) {
+      setOtpError("Please enter a valid email address.");
+      return;
+    }
+
+    setOtpLoading(true);
+    try {
+      const res = await fetch(SEND_OTP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: otpEmail.trim() }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        // Backend returns 'No user found with this email address' if not registered
+        throw new Error(data?.error || "Could not send OTP. Please try again.");
+      }
+
+      setOtpStep("enter-otp");
+      setOtpDigits(Array(OTP_LENGTH).fill(""));
+      startResendTimer();
+      setPopup({
+        open: true,
+        message: `We've sent a 6-digit code to ${otpEmail.trim()}`,
+        severity: "success",
+      });
+      setTimeout(() => otpInputRefs.current[0]?.focus(), 100);
+    } catch (err) {
+      setOtpError(err.message || "Could not send OTP. Please try again.");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleOtpDigitChange = (index, value) => {
+    const digit = value.replace(/\D/g, "").slice(-1);
+    setOtpDigits((prev) => {
+      const next = [...prev];
+      next[index] = digit;
+      return next;
+    });
+    if (digit && index < OTP_LENGTH - 1) {
+      otpInputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index, e) => {
+    if (e.key === "Backspace" && !otpDigits[index] && index > 0) {
+      otpInputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (e) => {
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, OTP_LENGTH);
+    if (!pasted) return;
+    e.preventDefault();
+    const next = Array(OTP_LENGTH).fill("");
+    pasted.split("").forEach((char, i) => {
+      next[i] = char;
+    });
+    setOtpDigits(next);
+    otpInputRefs.current[Math.min(pasted.length, OTP_LENGTH - 1)]?.focus();
+  };
+
+  const handleVerifyOtp = async () => {
+    setOtpError("");
+    const code = otpDigits.join("");
+    if (code.length !== OTP_LENGTH) {
+      setOtpError(`Please enter the ${OTP_LENGTH}-digit code.`);
+      return;
+    }
+
+    setOtpLoading(true);
+    try {
+      const res = await fetch(VERIFY_OTP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: otpEmail.trim(), otp: code }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error || "Invalid or expired OTP. Please try again.");
+      }
+
+      setOtpStep("verified");
+      setPopup({ open: true, message: "Login successful!", severity: "success" });
+      persistAuthAndRedirect(data);
+    } catch (err) {
+      setOtpError(err.message || "Invalid OTP. Please try again.");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
 
   const formatRegistrationError = (err) => {
     const responseData = err?.response?.data || err;
@@ -113,7 +345,7 @@ const Register = ({ onClose }) => {
       return "Please fill all required fields.";
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!isValidEmail(email)) {
       return "Please enter a valid email address.";
     }
 
@@ -283,6 +515,171 @@ const Register = ({ onClose }) => {
     },
   };
 
+  const socialButtonSx = {
+    flex: 1,
+    minWidth: 0,
+    borderRadius: "10px",
+    py: 1,
+    color: "#fff",
+    borderColor: "rgba(255,255,255,0.30)",
+    textTransform: "none",
+    fontWeight: 600,
+    fontSize: 13,
+    gap: 1,
+    "&:hover": {
+      borderColor: "#ffffff",
+      background: "rgba(255,255,255,0.08)",
+    },
+  };
+
+  const otpBoxSx = {
+    width: 44,
+    height: 52,
+    textAlign: "center",
+    fontSize: 20,
+    fontWeight: 700,
+    color: "#fff",
+    background: "transparent",
+    border: "1px solid rgba(255,255,255,0.30)",
+    borderRadius: "10px",
+    outline: "none",
+  };
+
+  // ---- Continue with Email (OTP) panel ----
+  const renderEmailOtpPanel = () => (
+    <Box sx={{ width: "100%", maxWidth: { xs: 420, md: 512 } }}>
+      <Box sx={{ display: "flex", alignItems: "center", mb: 2.5 }}>
+        <IconButton
+          onClick={resetOtpFlow}
+          sx={{ color: "#b9c0ff", mr: 1 }}
+          size="small"
+          aria-label="Back"
+        >
+          <ArrowBack fontSize="small" />
+        </IconButton>
+        <Typography sx={{ fontWeight: 700, fontSize: "28px" }}>
+          {otpStep === "verified" ? "You're in!" : "Continue with Email"}
+        </Typography>
+      </Box>
+
+      {otpError && (
+        <Alert severity="error" sx={{ mb: 2, borderRadius: 1.5 }}>
+          {otpError}
+        </Alert>
+      )}
+
+      {otpStep === "enter-email" && (
+        <>
+          <Typography sx={{ color: "rgba(255,255,255,0.85)", fontSize: 13, mb: 1.5 }}>
+            Enter your email address and we'll send you a one-time code.
+            (Your account must already be registered.)
+          </Typography>
+          <TextField
+            name="otpEmail"
+            type="email"
+            placeholder="Email Address *"
+            value={otpEmail}
+            onChange={(e) => setOtpEmail(e.target.value)}
+            fullWidth
+            required
+            size="small"
+            sx={inputSx}
+            onKeyDown={(e) => e.key === "Enter" && handleSendOtp()}
+          />
+          <Button
+            fullWidth
+            variant="contained"
+            disabled={otpLoading}
+            onClick={handleSendOtp}
+            sx={{
+              mt: 1,
+              borderRadius: 1,
+              py: 1,
+              color: "#1d1f3f",
+              background: "#f2d779",
+              textTransform: "none",
+              fontWeight: 700,
+              "&:hover": { background: "#e9cc67" },
+            }}
+          >
+            {otpLoading ? (
+              <CircularProgress size={22} sx={{ color: "#1d1f3f" }} />
+            ) : (
+              "Send OTP"
+            )}
+          </Button>
+        </>
+      )}
+
+      {otpStep === "enter-otp" && (
+        <>
+          <Typography sx={{ color: "rgba(255,255,255,0.85)", fontSize: 13, mb: 2 }}>
+            Enter the {OTP_LENGTH}-digit code sent to <b>{otpEmail.trim()}</b>
+          </Typography>
+          <Box sx={{ display: "flex", gap: 1, mb: 2 }} onPaste={handleOtpPaste}>
+            {otpDigits.map((digit, i) => (
+              <input
+                key={i}
+                ref={(el) => (otpInputRefs.current[i] = el)}
+                value={digit}
+                onChange={(e) => handleOtpDigitChange(i, e.target.value)}
+                onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                maxLength={1}
+                inputMode="numeric"
+                style={otpBoxSx}
+              />
+            ))}
+          </Box>
+          <Button
+            fullWidth
+            variant="contained"
+            disabled={otpLoading}
+            onClick={handleVerifyOtp}
+            sx={{
+              borderRadius: 1,
+              py: 1,
+              color: "#1d1f3f",
+              background: "#f2d779",
+              textTransform: "none",
+              fontWeight: 700,
+              "&:hover": { background: "#e9cc67" },
+            }}
+          >
+            {otpLoading ? (
+              <CircularProgress size={22} sx={{ color: "#1d1f3f" }} />
+            ) : (
+              "Verify OTP & Login"
+            )}
+          </Button>
+
+          <Box sx={{ textAlign: "center", mt: 1.5 }}>
+            {resendTimer > 0 ? (
+              <Typography sx={{ color: "rgba(255,255,255,0.6)", fontSize: 12.5 }}>
+                Resend code in {resendTimer}s
+              </Typography>
+            ) : (
+              <Link
+                component="button"
+                type="button"
+                underline="hover"
+                onClick={handleSendOtp}
+                sx={{ color: "#f2d779", fontWeight: 600, fontSize: 12.5 }}
+              >
+                Resend OTP
+              </Link>
+            )}
+          </Box>
+        </>
+      )}
+
+      {otpStep === "verified" && (
+        <Alert severity="success" sx={{ borderRadius: 1.5 }}>
+          OTP verified — login successful! Redirecting...
+        </Alert>
+      )}
+    </Box>
+  );
+
   return (
     <Box
       sx={{
@@ -385,264 +782,297 @@ const Register = ({ onClose }) => {
             <Close />
           </IconButton>
 
-          <Box
-            component="form"
-            onSubmit={handleSubmit}
-            sx={{
-              width: "100%",
-              maxWidth: { xs: 420, md: 512 },
-              maxHeight: "100%",
-              overflow: "hidden",
-            }}
+          <Snackbar
+            open={popup.open}
+            autoHideDuration={3000}
+            onClose={() => setPopup((prev) => ({ ...prev, open: false }))}
+            anchorOrigin={{ vertical: "top", horizontal: "center" }}
           >
-            <Typography sx={{ fontWeight: 700, mb: 1.3, fontSize: "36px" }}>
-              Get Started Now
-            </Typography>
-
-            <Snackbar
-              open={popup.open}
-              autoHideDuration={3000}
+            <Alert
               onClose={() => setPopup((prev) => ({ ...prev, open: false }))}
-              anchorOrigin={{ vertical: "top", horizontal: "center" }}
+              severity={popup.severity}
+              sx={{ width: "100%", borderRadius: 1.5 }}
             >
-              <Alert
-                onClose={() => setPopup((prev) => ({ ...prev, open: false }))}
-                severity={popup.severity}
-                sx={{ width: "100%", borderRadius: 1.5 }}
-              >
-                {popup.message}
-              </Alert>
-            </Snackbar>
+              {popup.message}
+            </Alert>
+          </Snackbar>
 
-            {error && (
-              <Alert severity="error" sx={{ mb: 2, borderRadius: 1.5 }}>
-                {error}
-              </Alert>
-            )}
-
-            <TextField
-              name="firstName"
-              placeholder="First Name *"
-              value={formData.firstName}
-              onChange={handleChange}
-              fullWidth
-              required
-              size="small"
-              sx={inputSx}
-            />
-
-            <TextField
-              name="lastName"
-              placeholder="Last Name *"
-              value={formData.lastName}
-              onChange={handleChange}
-              fullWidth
-              required
-              size="small"
-              sx={inputSx}
-            />
-
-            <TextField
-              name="username"
-              placeholder="Username *"
-              value={formData.username}
-              onChange={handleChange}
-              fullWidth
-              required
-              size="small"
-              sx={inputSx}
-            />
-
-            <TextField
-              name="email"
-              type="email"
-              placeholder="Email Address *"
-              value={formData.email}
-              onChange={handleChange}
-              fullWidth
-              required
-              size="small"
-              sx={inputSx}
-            />
-
-            <TextField
-              name="mobile"
-              type="tel"
-              placeholder="Mobile Number *"
-              value={formData.mobile}
-              onChange={handleChange}
-              fullWidth
-              required
-              size="small"
-              inputProps={{
-                maxLength: 10,
-                pattern: "[0-9]{10}",
-              }}
-              sx={inputSx}
-            />
-
-            <FormControl fullWidth size="small" sx={{ ...inputSx, mb: 1.1 }}>
-    <Select
-        name="user_type"
-        value={formData.user_type}
-        onChange={handleChange}
-        displayEmpty
-        sx={{
-            borderRadius: '10px',
-            color: '#fff',
-            height: 54,
-            '& .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'rgba(255,255,255,0.30)',
-            },
-            '&:hover .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'rgba(255,255,255,0.55)',
-            },
-            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                borderColor: '#ffffff',
-            },
-            '& .MuiSvgIcon-root': {
-                color: '#fff',
-            },
-        }}
-    >
-        <MenuItem value="" disabled>
-            Select Role *
-        </MenuItem>
-
-        <MenuItem value="STUDENT">Student</MenuItem>
-        <MenuItem value="STAFF">Staff</MenuItem>
-        <MenuItem value="ADMIN">Admin</MenuItem>
-    </Select>
-</FormControl>
-
-            <TextField
-              name="password"
-              placeholder="Password *"
-              type={showPassword ? "text" : "password"}
-              value={formData.password}
-              onChange={handleChange}
-              fullWidth
-              required
-              size="small"
-              sx={passwordInputSx}
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      edge="end"
-                      onClick={() => handleTogglePasswordVisibility("password")}
-                      onMouseDown={handleMouseDownPassword}
-                      aria-label={
-                        showPassword ? "Hide password" : "Show password"
-                      }
-                    >
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-            />
-            <TextField
-              name="password2"
-              placeholder="Confirm Password *"
-              type={showConfirmPassword ? "text" : "password"}
-              value={formData.password2}
-              onChange={handleChange}
-              fullWidth
-              required
-              size="small"
-              sx={passwordInputSx}
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      edge="end"
-                      onClick={() =>
-                        handleTogglePasswordVisibility("password2")
-                      }
-                      onMouseDown={handleMouseDownPassword}
-                      aria-label={
-                        showConfirmPassword
-                          ? "Hide confirm password"
-                          : "Show confirm password"
-                      }
-                    >
-                      {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-            />
-
+          {authMode === "email-otp" ? (
+            renderEmailOtpPanel()
+          ) : (
             <Box
+              component="form"
+              onSubmit={handleSubmit}
               sx={{
-                display: "flex",
-                gap: 2,
-                mt: 0.8,
-                mb: 0.9,
-                justifyContent: "center",
+                width: "100%",
+                maxWidth: { xs: 420, md: 512 },
+                maxHeight: "100%",
+                overflow: "hidden",
               }}
             >
-              <Button
-                type="submit"
-                variant="contained"
-                disabled={loading}
-                sx={{
-                  minWidth: 138,
-                  borderRadius: 1,
-                  py: 0.55,
-                  color: "#1d1f3f",
-                  background: "#f2d779",
-                  textTransform: "none",
-                  fontWeight: 700,
-                  "&:hover": { background: "#e9cc67" },
-                }}
-              >
-                {loading ? (
-                  <CircularProgress size={22} sx={{ color: "#1d1f3f" }} />
-                ) : (
-                  "Register"
-                )}
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={() => navigate("/login")}
-                sx={{
-                  minWidth: 138,
-                  borderRadius: 1,
-                  py: 0.55,
-                  color: "#ffffff",
-                  borderColor: "rgba(255,255,255,0.65)",
-                  textTransform: "none",
-                  fontWeight: 600,
-                  "&:hover": {
-                    borderColor: "#ffffff",
-                    background: "rgba(255,255,255,0.08)",
-                  },
-                }}
-              >
-                Cancel
-              </Button>
-            </Box>
+              <Typography sx={{ fontWeight: 700, mb: 1.3, fontSize: "36px" }}>
+                Get Started Now
+              </Typography>
 
-            <Typography
-              sx={{
-                textAlign: "center",
-                color: "rgba(255,255,255,0.9)",
-                fontSize: 13,
-              }}
-            >
-              Already have an account?{" "}
-              <Link
-                component={RouterLink}
-                to="/login"
-                underline="hover"
-                sx={{ color: "#f2d779", fontWeight: 700 }}
+              {error && (
+                <Alert severity="error" sx={{ mb: 2, borderRadius: 1.5 }}>
+                  {error}
+                </Alert>
+              )}
+
+              <TextField
+                name="firstName"
+                placeholder="First Name *"
+                value={formData.firstName}
+                onChange={handleChange}
+                fullWidth
+                required
+                size="small"
+                sx={inputSx}
+              />
+
+              <TextField
+                name="lastName"
+                placeholder="Last Name *"
+                value={formData.lastName}
+                onChange={handleChange}
+                fullWidth
+                required
+                size="small"
+                sx={inputSx}
+              />
+
+              <TextField
+                name="username"
+                placeholder="Username *"
+                value={formData.username}
+                onChange={handleChange}
+                fullWidth
+                required
+                size="small"
+                sx={inputSx}
+              />
+
+              <TextField
+                name="email"
+                type="email"
+                placeholder="Email Address *"
+                value={formData.email}
+                onChange={handleChange}
+                fullWidth
+                required
+                size="small"
+                sx={inputSx}
+              />
+
+              <TextField
+                name="mobile"
+                type="tel"
+                placeholder="Mobile Number *"
+                value={formData.mobile}
+                onChange={handleChange}
+                fullWidth
+                required
+                size="small"
+                inputProps={{
+                  maxLength: 10,
+                  pattern: "[0-9]{10}",
+                }}
+                sx={inputSx}
+              />
+
+              <FormControl fullWidth size="small" sx={{ ...inputSx, mb: 1.1 }}>
+                <Select
+                  name="user_type"
+                  value={formData.user_type}
+                  onChange={handleChange}
+                  displayEmpty
+                  sx={{
+                    borderRadius: "10px",
+                    color: "#fff",
+                    height: 54,
+                    "& .MuiOutlinedInput-notchedOutline": {
+                      borderColor: "rgba(255,255,255,0.30)",
+                    },
+                    "&:hover .MuiOutlinedInput-notchedOutline": {
+                      borderColor: "rgba(255,255,255,0.55)",
+                    },
+                    "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                      borderColor: "#ffffff",
+                    },
+                    "& .MuiSvgIcon-root": {
+                      color: "#fff",
+                    },
+                  }}
+                >
+                  <MenuItem value="" disabled>
+                    Select Role *
+                  </MenuItem>
+
+                  <MenuItem value="STUDENT">Student</MenuItem>
+                  <MenuItem value="STAFF">Staff</MenuItem>
+                  <MenuItem value="ADMIN">Admin</MenuItem>
+                </Select>
+              </FormControl>
+
+              <TextField
+                name="password"
+                placeholder="Password *"
+                type={showPassword ? "text" : "password"}
+                value={formData.password}
+                onChange={handleChange}
+                fullWidth
+                required
+                size="small"
+                sx={passwordInputSx}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        edge="end"
+                        onClick={() => handleTogglePasswordVisibility("password")}
+                        onMouseDown={handleMouseDownPassword}
+                        aria-label={
+                          showPassword ? "Hide password" : "Show password"
+                        }
+                      >
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+              <TextField
+                name="password2"
+                placeholder="Confirm Password *"
+                type={showConfirmPassword ? "text" : "password"}
+                value={formData.password2}
+                onChange={handleChange}
+                fullWidth
+                required
+                size="small"
+                sx={passwordInputSx}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        edge="end"
+                        onClick={() =>
+                          handleTogglePasswordVisibility("password2")
+                        }
+                        onMouseDown={handleMouseDownPassword}
+                        aria-label={
+                          showConfirmPassword
+                            ? "Hide confirm password"
+                            : "Show confirm password"
+                        }
+                      >
+                        {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+
+              <Box
+                sx={{
+                  display: "flex",
+                  gap: 2,
+                  mt: 0.8,
+                  mb: 0.9,
+                  justifyContent: "center",
+                }}
               >
-                Login
-              </Link>
-            </Typography>
-          </Box>
+                <Button
+                  type="submit"
+                  variant="contained"
+                  disabled={loading}
+                  sx={{
+                    minWidth: 138,
+                    borderRadius: 1,
+                    py: 0.55,
+                    color: "#1d1f3f",
+                    background: "#f2d779",
+                    textTransform: "none",
+                    fontWeight: 700,
+                    "&:hover": { background: "#e9cc67" },
+                  }}
+                >
+                  {loading ? (
+                    <CircularProgress size={22} sx={{ color: "#1d1f3f" }} />
+                  ) : (
+                    "Register"
+                  )}
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={() => navigate("/login")}
+                  sx={{
+                    minWidth: 138,
+                    borderRadius: 1,
+                    py: 0.55,
+                    color: "#ffffff",
+                    borderColor: "rgba(255,255,255,0.65)",
+                    textTransform: "none",
+                    fontWeight: 600,
+                    "&:hover": {
+                      borderColor: "#ffffff",
+                      background: "rgba(255,255,255,0.08)",
+                    },
+                  }}
+                >
+                  Cancel
+                </Button>
+              </Box>
+
+              <Divider
+                sx={{
+                  my: 1.4,
+                  "&::before, &::after": { borderColor: "rgba(255,255,255,0.25)" },
+                  color: "rgba(255,255,255,0.6)",
+                  fontSize: 12,
+                }}
+              >
+                OR CONTINUE WITH
+              </Divider>
+
+              <Box sx={{ display: "flex", gap: 1.5, mb: 1.6, alignItems: "center" }}>
+                {/* Real Google Identity Services button renders here */}
+                <Box ref={googleButtonRef} sx={{ flex: 1, display: "flex", justifyContent: "center" }} />
+
+                <Button
+                  variant="outlined"
+                  sx={socialButtonSx}
+                  onClick={() => {
+                    setAuthMode("email-otp");
+                    setOtpStep("enter-email");
+                    setOtpEmail(formData.email);
+                  }}
+                >
+                  <EmailIcon fontSize="small" />
+                  Email
+                </Button>
+              </Box>
+
+              <Typography
+                sx={{
+                  textAlign: "center",
+                  color: "rgba(255,255,255,0.9)",
+                  fontSize: 13,
+                }}
+              >
+                Already have an account?{" "}
+                <Link
+                  component={RouterLink}
+                  to="/login"
+                  underline="hover"
+                  sx={{ color: "#f2d779", fontWeight: 700 }}
+                >
+                  Login
+                </Link>
+              </Typography>
+            </Box>
+          )}
         </Box>
       </Paper>
     </Box>
