@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
     Box,
     Paper,
@@ -30,6 +31,7 @@ import {
     ListItemText,
     ListItemIcon,
     Checkbox,
+    Skeleton,
 } from '@mui/material';
 import {
     Add as AddIcon,
@@ -42,6 +44,85 @@ import {
 import { DataGrid } from '@mui/x-data-grid';
 import api from '../../api';
 import { useAuth } from '../../contexts/AuthContext'; // ✅ Added
+
+// ─── motion-wrapped MUI primitives ─────────────────────────────────────────
+const MotionCard = motion(Card);
+const MotionPaper = motion(Paper);
+const MotionBox = motion(Box);
+
+const EASE = [0.16, 1, 0.3, 1];
+
+const pageStagger = {
+    hidden: {},
+    visible: { transition: { staggerChildren: 0.08, delayChildren: 0.05 } },
+};
+
+const fadeUp = {
+    hidden: { opacity: 0, y: 16 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: EASE } },
+};
+
+const listItemVariants = {
+    hidden: { opacity: 0, x: -12 },
+    show: { opacity: 1, x: 0, transition: { duration: 0.25 } },
+};
+
+// ─── Page loading skeleton — shown while the initial /users/ fetch is in flight ──
+const shimmer = {
+    animate: {
+        opacity: [0.5, 1, 0.5],
+        transition: { duration: 1.4, repeat: Infinity, ease: 'easeInOut' },
+    },
+};
+
+const PageLoadingSkeleton = () => (
+    <Box sx={{ p: 3 }}>
+        {/* Header skeleton */}
+        <Card elevation={0} sx={{ mb: 3, border: '1px solid', borderColor: 'divider' }}>
+            <CardContent>
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                    <Box sx={{ width: '40%' }}>
+                        <motion.div {...shimmer}>
+                            <Skeleton variant="text" width="60%" height={44} />
+                        </motion.div>
+                        <motion.div {...shimmer}>
+                            <Skeleton variant="text" width="30%" height={20} />
+                        </motion.div>
+                    </Box>
+                    <Stack direction="row" spacing={2}>
+                        <motion.div {...shimmer}>
+                            <Skeleton variant="rounded" width={140} height={44} sx={{ borderRadius: '12px' }} />
+                        </motion.div>
+                        <motion.div {...shimmer}>
+                            <Skeleton variant="rounded" width={120} height={44} sx={{ borderRadius: '12px' }} />
+                        </motion.div>
+                    </Stack>
+                </Stack>
+            </CardContent>
+        </Card>
+
+        {/* Tabs skeleton */}
+        <motion.div {...shimmer}>
+            <Skeleton variant="rounded" width="100%" height={48} sx={{ mb: 2, borderRadius: '16px' }} />
+        </motion.div>
+
+        {/* Search/filter skeleton */}
+        <motion.div {...shimmer}>
+            <Skeleton variant="rounded" width="100%" height={56} sx={{ mb: 2, borderRadius: '16px' }} />
+        </motion.div>
+
+        {/* Grid skeleton */}
+        <Paper elevation={0} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: '16px' }}>
+            <Stack spacing={1.5}>
+                {Array.from({ length: 7 }).map((_, i) => (
+                    <motion.div key={i} {...shimmer} transition={{ ...shimmer.animate.transition, delay: i * 0.05 }}>
+                        <Skeleton variant="rounded" width="100%" height={44} sx={{ borderRadius: '8px' }} />
+                    </motion.div>
+                ))}
+            </Stack>
+        </Paper>
+    </Box>
+);
 
 const UserManagement = () => {
     const [users, setUsers] = useState([]);
@@ -496,15 +577,17 @@ const UserManagement = () => {
             renderCell: (params) => (
                 params?.row?.user_type === 'STUDENT' && (
                     <Tooltip title="Assign Courses">
-                        <IconButton
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleOpenAssignDialog(params.row);
-                            }}
-                            sx={{ color: 'text.secondary' }}
-                        >
-                            <PersonAddIcon />
-                        </IconButton>
+                        <motion.div whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.9 }} style={{ display: 'inline-flex' }}>
+                            <IconButton
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenAssignDialog(params.row);
+                                }}
+                                sx={{ color: 'text.secondary' }}
+                            >
+                                <PersonAddIcon />
+                            </IconButton>
+                        </motion.div>
                     </Tooltip>
                 )
             ),
@@ -517,29 +600,35 @@ const UserManagement = () => {
                 <Box>
                     {isAdminUser && (
                         <Tooltip title="Edit">
-                            <IconButton
-                                onClick={(e) => { e.stopPropagation(); handleOpenDialog(params.row); }}
-                                sx={{ color: '#2E7D32' }}
-                            >
-                                <EditIcon />
-                            </IconButton>
+                            <motion.div whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.9 }} style={{ display: 'inline-flex' }}>
+                                <IconButton
+                                    onClick={(e) => { e.stopPropagation(); handleOpenDialog(params.row); }}
+                                    sx={{ color: '#2E7D32' }}
+                                >
+                                    <EditIcon />
+                                </IconButton>
+                            </motion.div>
                         </Tooltip>
                     )}
                     {isStaffUser && (
                         <Tooltip title="Request User Deletion">
-                            <IconButton onClick={(e) => { e.stopPropagation(); handleOpenRequestDialog(params.row); }}>
-                                <MarkEmailUnreadIcon />
-                            </IconButton>
+                            <motion.div whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.9 }} style={{ display: 'inline-flex' }}>
+                                <IconButton onClick={(e) => { e.stopPropagation(); handleOpenRequestDialog(params.row); }}>
+                                    <MarkEmailUnreadIcon />
+                                </IconButton>
+                            </motion.div>
                         </Tooltip>
                     )}
                     {isAdminUser && (
                         <Tooltip title="Delete">
-                            <IconButton
-                                onClick={(e) => { e.stopPropagation(); handleDelete(params.row.id); }}
-                                sx={{ color: '#D32F2F' }}
-                            >
-                                <DeleteIcon />
-                            </IconButton>
+                            <motion.div whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.9 }} style={{ display: 'inline-flex' }}>
+                                <IconButton
+                                    onClick={(e) => { e.stopPropagation(); handleDelete(params.row.id); }}
+                                    sx={{ color: '#D32F2F' }}
+                                >
+                                    <DeleteIcon />
+                                </IconButton>
+                            </motion.div>
                         </Tooltip>
                     )}
                 </Box>
@@ -579,9 +668,28 @@ const UserManagement = () => {
     });
 
     return (
-        <Box sx={{ p: 3 }}>
+        <AnimatePresence mode="wait">
+            {loading ? (
+                <motion.div
+                    key="loading"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.25 }}
+                >
+                    <PageLoadingSkeleton />
+                </motion.div>
+            ) : (
+        <MotionBox
+            key="content"
+            sx={{ p: 3 }}
+            variants={pageStagger}
+            initial="hidden"
+            animate="visible"
+        >
             {/* Header Section */}
-            <Card
+            <MotionCard
+                variants={fadeUp}
                 elevation={0}
                 sx={{
                     mb: 3,
@@ -611,10 +719,30 @@ const UserManagement = () => {
                         </Box>
                         <Stack direction="row" spacing={2}>
                             {user?.user_type === 'ADMIN' && (
+                                <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                                    <Button
+                                        variant="outlined"
+                                        size="large"
+                                        onClick={handleOpenRegisterStaffDialog}
+                                        sx={{
+                                            borderRadius: '12px',
+                                            textTransform: 'none',
+                                            px: 3,
+                                            py: 1.5,
+                                            fontSize: '1rem',
+                                            fontWeight: 'medium'
+                                        }}
+                                    >
+                                        Register Staff
+                                    </Button>
+                                </motion.div>
+                            )}
+                            <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
                                 <Button
-                                    variant="outlined"
+                                    variant="contained"
                                     size="large"
-                                    onClick={handleOpenRegisterStaffDialog}
+                                    startIcon={<AddIcon />}
+                                    onClick={() => handleOpenDialog()}
                                     sx={{
                                         borderRadius: '12px',
                                         textTransform: 'none',
@@ -624,32 +752,17 @@ const UserManagement = () => {
                                         fontWeight: 'medium'
                                     }}
                                 >
-                                    Register Staff
+                                    Add User
                                 </Button>
-                            )}
-                            <Button
-                                variant="contained"
-                                size="large"
-                                startIcon={<AddIcon />}
-                                onClick={() => handleOpenDialog()}
-                                sx={{
-                                    borderRadius: '12px',
-                                    textTransform: 'none',
-                                    px: 3,
-                                    py: 1.5,
-                                    fontSize: '1rem',
-                                    fontWeight: 'medium'
-                                }}
-                            >
-                                Add User
-                            </Button>
+                            </motion.div>
                         </Stack>
                     </Stack>
                 </CardContent>
-            </Card>
+            </MotionCard>
 
             {/* Tabs */}
-            <Paper
+            <MotionPaper
+                variants={fadeUp}
                 elevation={0}
                 sx={{
                     mb: 2,
@@ -689,10 +802,11 @@ const UserManagement = () => {
                         <Tab value="ADMIN" label="Admins" />
                     )}
                 </Tabs>
-            </Paper>
+            </MotionPaper>
 
             {/* Search and Filter */}
-            <Paper
+            <MotionPaper
+                variants={fadeUp}
                 elevation={0}
                 sx={{
                     mb: 2,
@@ -741,13 +855,14 @@ const UserManagement = () => {
                         </Select>
                     </FormControl>
                 </Stack>
-            </Paper>
+            </MotionPaper>
 
             {/* Data Grid */}
-            <Paper 
+            <MotionPaper
+                variants={fadeUp}
                 elevation={0}
-                sx={{ 
-                    height: 550, 
+                sx={{
+                    height: 550,
                     width: '100%',
                     border: '1px solid',
                     borderColor: 'divider',
@@ -772,6 +887,7 @@ const UserManagement = () => {
                             fontWeight: 'medium'
                         },
                         '& .MuiDataGrid-row': {
+                            transition: 'background-color 0.15s ease',
                             '&:hover': {
                                 bgcolor: 'action.hover'
                             }
@@ -782,7 +898,7 @@ const UserManagement = () => {
                         }
                     }}
                 />
-            </Paper>
+            </MotionPaper>
 
             {/* ✅ Assign Courses Dialog (added) */}
             <Dialog
@@ -807,52 +923,63 @@ const UserManagement = () => {
                 </DialogTitle>
                 <Divider />
                 <DialogContent sx={{ pt: 3 }}>
-                    <List>
-                        {availableCourses.map((course) => (
-                            <ListItem
-                                key={course.id}
-                                disablePadding
-                                disableGutters
-                                sx={{ px: 1 }}
-                            >
-                                <ListItemButton onClick={() => handleToggleCourse(course.id)}>
-                                    <ListItemIcon sx={{ minWidth: 40 }}>
-                                        <Checkbox checked={selectedCourses.includes(course.id)} />
-                                    </ListItemIcon>
-                                    <ListItemText primary={course.title || course.name} />
-                                </ListItemButton>
-                            </ListItem>
-                        ))}
-                        {availableCourses.length === 0 && (
-                            <Typography variant="body2" color="text.secondary">
-                                No courses available.
-                            </Typography>
-                        )}
-                    </List>
+                    <motion.div
+                        initial="hidden"
+                        animate="show"
+                        variants={{ hidden: {}, show: { transition: { staggerChildren: 0.05 } } }}
+                    >
+                        <List>
+                            {availableCourses.map((course) => (
+                                <motion.div key={course.id} variants={listItemVariants}>
+                                    <ListItem
+                                        disablePadding
+                                        disableGutters
+                                        sx={{ px: 1 }}
+                                    >
+                                        <ListItemButton onClick={() => handleToggleCourse(course.id)}>
+                                            <ListItemIcon sx={{ minWidth: 40 }}>
+                                                <Checkbox checked={selectedCourses.includes(course.id)} />
+                                            </ListItemIcon>
+                                            <ListItemText primary={course.title || course.name} />
+                                        </ListItemButton>
+                                    </ListItem>
+                                </motion.div>
+                            ))}
+                        </List>
+                    </motion.div>
+                    {availableCourses.length === 0 && (
+                        <Typography variant="body2" color="text.secondary">
+                            No courses available.
+                        </Typography>
+                    )}
                 </DialogContent>
                 <DialogActions sx={{ p: 3, pt: 1 }}>
-                    <Button
-                        onClick={() => setOpenAssignDialog(false)}
-                        variant="outlined"
-                        sx={{
-                            borderRadius: '20px',
-                            textTransform: 'none',
-                            px: 3
-                        }}
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        onClick={handleSaveAssign}
-                        variant="contained"
-                        sx={{
-                            borderRadius: '20px',
-                            textTransform: 'none',
-                            px: 3
-                        }}
-                    >
-                        Save
-                    </Button>
+                    <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                        <Button
+                            onClick={() => setOpenAssignDialog(false)}
+                            variant="outlined"
+                            sx={{
+                                borderRadius: '20px',
+                                textTransform: 'none',
+                                px: 3
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                    </motion.div>
+                    <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                        <Button
+                            onClick={handleSaveAssign}
+                            variant="contained"
+                            sx={{
+                                borderRadius: '20px',
+                                textTransform: 'none',
+                                px: 3
+                            }}
+                        >
+                            Save
+                        </Button>
+                    </motion.div>
                 </DialogActions>
             </Dialog>
 
@@ -945,44 +1072,53 @@ const UserManagement = () => {
                                 }
                             }}
                         />
-                        {!editUser && formData.user_type !== 'STAFF' && (
-                            <>
-                                <TextField
-                                    margin="normal"
-                                    required
-                                    fullWidth
-                                    label="Password"
-                                    name="password"
-                                    type="password"
-                                    value={formData.password}
-                                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                    error={!!formErrors.password}
-                                    helperText={formErrors.password}
-                                    sx={{
-                                        '& .MuiOutlinedInput-root': {
-                                            borderRadius: '12px'
-                                        }
-                                    }}
-                                />
-                                <TextField
-                                    margin="normal"
-                                    required
-                                    fullWidth
-                                    label="Confirm Password"
-                                    name="password2"
-                                    type="password"
-                                    value={formData.password2}
-                                    onChange={(e) => setFormData({ ...formData, password2: e.target.value })}
-                                    error={!!formErrors.password2}
-                                    helperText={formErrors.password2}
-                                    sx={{
-                                        '& .MuiOutlinedInput-root': {
-                                            borderRadius: '12px'
-                                        }
-                                    }}
-                                />
-                            </>
-                        )}
+                        <AnimatePresence>
+                            {!editUser && formData.user_type !== 'STAFF' && (
+                                <motion.div
+                                    key="password-fields"
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    transition={{ duration: 0.25, ease: EASE }}
+                                    style={{ overflow: 'hidden' }}
+                                >
+                                    <TextField
+                                        margin="normal"
+                                        required
+                                        fullWidth
+                                        label="Password"
+                                        name="password"
+                                        type="password"
+                                        value={formData.password}
+                                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                        error={!!formErrors.password}
+                                        helperText={formErrors.password}
+                                        sx={{
+                                            '& .MuiOutlinedInput-root': {
+                                                borderRadius: '12px'
+                                            }
+                                        }}
+                                    />
+                                    <TextField
+                                        margin="normal"
+                                        required
+                                        fullWidth
+                                        label="Confirm Password"
+                                        name="password2"
+                                        type="password"
+                                        value={formData.password2}
+                                        onChange={(e) => setFormData({ ...formData, password2: e.target.value })}
+                                        error={!!formErrors.password2}
+                                        helperText={formErrors.password2}
+                                        sx={{
+                                            '& .MuiOutlinedInput-root': {
+                                                borderRadius: '12px'
+                                            }
+                                        }}
+                                    />
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                         <FormControl fullWidth margin="normal">
                             <InputLabel>Team</InputLabel>
                             <Select
@@ -1021,28 +1157,32 @@ const UserManagement = () => {
                     </Box>
                 </DialogContent>
                 <DialogActions sx={{ p: 3, pt: 1 }}>
-                    <Button
-                        onClick={handleCloseDialog}
-                        variant="outlined"
-                        sx={{
-                            borderRadius: '20px',
-                            textTransform: 'none',
-                            px: 3
-                        }}
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        onClick={handleSubmit}
-                        variant="contained"
-                        sx={{
-                            borderRadius: '20px',
-                            textTransform: 'none',
-                            px: 3
-                        }}
-                    >
-                        {editUser ? 'Save Changes' : 'Add User'}
-                    </Button>
+                    <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                        <Button
+                            onClick={handleCloseDialog}
+                            variant="outlined"
+                            sx={{
+                                borderRadius: '20px',
+                                textTransform: 'none',
+                                px: 3
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                    </motion.div>
+                    <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                        <Button
+                            onClick={handleSubmit}
+                            variant="contained"
+                            sx={{
+                                borderRadius: '20px',
+                                textTransform: 'none',
+                                px: 3
+                            }}
+                        >
+                            {editUser ? 'Save Changes' : 'Add User'}
+                        </Button>
+                    </motion.div>
                 </DialogActions>
             </Dialog>
 
@@ -1090,29 +1230,33 @@ const UserManagement = () => {
                     </Box>
                 </DialogContent>
                 <DialogActions sx={{ p: 3, pt: 1 }}>
-                    <Button
-                        onClick={handleCloseRequestDialog}
-                        variant="outlined"
-                        sx={{
-                            borderRadius: '20px',
-                            textTransform: 'none',
-                            px: 3
-                        }}
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        onClick={handleSubmitRequest}
-                        variant="contained"
-                        color="error"
-                        sx={{
-                            borderRadius: '20px',
-                            textTransform: 'none',
-                            px: 3
-                        }}
-                    >
-                        Submit Delete Request
-                    </Button>
+                    <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                        <Button
+                            onClick={handleCloseRequestDialog}
+                            variant="outlined"
+                            sx={{
+                                borderRadius: '20px',
+                                textTransform: 'none',
+                                px: 3
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                    </motion.div>
+                    <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                        <Button
+                            onClick={handleSubmitRequest}
+                            variant="contained"
+                            color="error"
+                            sx={{
+                                borderRadius: '20px',
+                                textTransform: 'none',
+                                px: 3
+                            }}
+                        >
+                            Submit Delete Request
+                        </Button>
+                    </motion.div>
                 </DialogActions>
             </Dialog>
 
@@ -1188,31 +1332,35 @@ const UserManagement = () => {
                     </Box>
                 </DialogContent>
                 <DialogActions sx={{ p: 3, pt: 1 }}>
-                    <Button
-                        onClick={handleCloseRegisterStaffDialog}
-                        variant="outlined"
-                        disabled={registerStaffSubmitting}
-                        sx={{
-                            borderRadius: '20px',
-                            textTransform: 'none',
-                            px: 3
-                        }}
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        onClick={handleRegisterStaff}
-                        variant="contained"
-                        color="primary"
-                        disabled={registerStaffSubmitting}
-                        sx={{
-                            borderRadius: '20px',
-                            textTransform: 'none',
-                            px: 3
-                        }}
-                    >
-                        {registerStaffSubmitting ? 'Registering...' : 'Register'}
-                    </Button>
+                    <motion.div whileHover={{ scale: registerStaffSubmitting ? 1 : 1.03 }} whileTap={{ scale: registerStaffSubmitting ? 1 : 0.97 }}>
+                        <Button
+                            onClick={handleCloseRegisterStaffDialog}
+                            variant="outlined"
+                            disabled={registerStaffSubmitting}
+                            sx={{
+                                borderRadius: '20px',
+                                textTransform: 'none',
+                                px: 3
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                    </motion.div>
+                    <motion.div whileHover={{ scale: registerStaffSubmitting ? 1 : 1.03 }} whileTap={{ scale: registerStaffSubmitting ? 1 : 0.97 }}>
+                        <Button
+                            onClick={handleRegisterStaff}
+                            variant="contained"
+                            color="primary"
+                            disabled={registerStaffSubmitting}
+                            sx={{
+                                borderRadius: '20px',
+                                textTransform: 'none',
+                                px: 3
+                            }}
+                        >
+                            {registerStaffSubmitting ? 'Registering...' : 'Register'}
+                        </Button>
+                    </motion.div>
                 </DialogActions>
             </Dialog>
 
@@ -1221,12 +1369,15 @@ const UserManagement = () => {
                 autoHideDuration={6000}
                 onClose={handleCloseSnackbar}
                 anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                TransitionProps={{ direction: 'left' }}
             >
                 <Alert onClose={handleCloseSnackbar} severity={snackbar.severity}>
                     {snackbar.message}
                 </Alert>
             </Snackbar>
-        </Box>
+        </MotionBox>
+            )}
+        </AnimatePresence>
     );
 };
 
