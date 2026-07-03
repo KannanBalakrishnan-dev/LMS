@@ -14,6 +14,7 @@ import {
   Select,
   MenuItem,
   Stack,
+  Tooltip as MuiTooltip,
 } from "@mui/material";
 import { BarChart, LineChart, PieChart } from "@mui/x-charts";
 import PeopleAltRoundedIcon from "@mui/icons-material/PeopleAltRounded";
@@ -22,6 +23,7 @@ import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import AttachMoneyRoundedIcon from "@mui/icons-material/AttachMoneyRounded";
 import TrendingUpRoundedIcon from "@mui/icons-material/TrendingUpRounded";
 import TrendingDownRoundedIcon from "@mui/icons-material/TrendingDownRounded";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import api from "../../api";
 
 const PALETTE = {
@@ -64,7 +66,7 @@ const panelEnter = {
  *  - Otherwise         → Math.round((cur - prev) / prev * 100)
  *
  * We return null instead of 0 when there is genuinely no change data,
- * so the StatCard can render "N/A" or hide the trend row entirely.
+ * so the StatCard can render "No data" and never fabricate a number.
  */
 const calcChange = (current, previous) => {
   if (current === 0 && previous === 0) return null; // truly no data
@@ -75,9 +77,12 @@ const calcChange = (current, previous) => {
 
 /**
  * splitHalves(arr)
- * Splits an array into first half (previous period) and second half (current
- * period) so we can compute a meaningful trend from any time-series the API
- * already returns (e.g. registrationTrend).
+ * Splits a time-ordered array into a "previous period" (first half) and
+ * "current period" (second half) so we can compute a rough trend from any
+ * series the API returns. This is a client-side approximation — it assumes
+ * the array is ordered oldest → newest and each bucket represents an equal
+ * span of time. For an exact figure, the backend should return an explicit
+ * `*Change` field (see priority order in Analytics component below).
  */
 const splitHalves = (arr = []) => {
   if (!arr.length) return { prev: 0, curr: 0 };
@@ -91,9 +96,15 @@ const splitHalves = (arr = []) => {
 
 // ─── StatCard ────────────────────────────────────────────────────────────────
 // `change` is a number (can be null = no data) representing % change.
-const StatCard = ({ icon, iconColor, label, value, change }) => {
+// `changeIsInverted` = true means a *lower* value is the good direction
+// (e.g. "average days to complete" going down is improvement, not decline).
+const StatCard = ({ icon, iconColor, label, value, change, changeIsInverted = false }) => {
   const hasData = change !== null && change !== undefined;
-//   const isPositive = hasData && change >= 0;
+  const isGoodDirection = hasData
+    ? changeIsInverted
+      ? change <= 0
+      : change >= 0
+    : true;
 
   return (
     <MotionCard
@@ -155,34 +166,27 @@ const StatCard = ({ icon, iconColor, label, value, change }) => {
           <Stack direction="row" alignItems="center" spacing={0.4}>
             {change >= 0 ? (
               <TrendingUpRoundedIcon
-                sx={{ fontSize: 15, color: "success.main" }}
+                sx={{ fontSize: 15, color: isGoodDirection ? "success.main" : "error.main" }}
               />
             ) : (
               <TrendingDownRoundedIcon
-                sx={{ fontSize: 15, color: "error.main" }}
+                sx={{ fontSize: 15, color: isGoodDirection ? "success.main" : "error.main" }}
               />
             )}
 
             <Typography
               variant="caption"
               fontWeight={700}
-              color={change >= 0 ? "success.main" : "error.main"}
+              color={isGoodDirection ? "success.main" : "error.main"}
             >
               {change >= 0 ? "+" : ""}
               {change}%
             </Typography>
           </Stack>
         ) : (
-          <Stack direction="row" spacing={0.4}>
-            <TrendingUpRoundedIcon
-              sx={{ fontSize: 15, color: "text.secondary" }}
-            />
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              fontWeight={700}
-            >
-              0%
+          <Stack direction="row" spacing={0.4} alignItems="center">
+            <Typography variant="caption" color="text.secondary" fontWeight={600}>
+              No comparison data yet
             </Typography>
           </Stack>
         )}
@@ -192,7 +196,7 @@ const StatCard = ({ icon, iconColor, label, value, change }) => {
 };
 
 // ─── ChartCard ───────────────────────────────────────────────────────────────
-const ChartCard = ({ title, action, children }) => (
+const ChartCard = ({ title, subtitle, action, children }) => (
   <MotionCard
     variant="outlined"
     variants={cardEnter}
@@ -206,7 +210,9 @@ const ChartCard = ({ title, action, children }) => (
   >
     <CardHeader
       title={title}
+      subheader={subtitle}
       titleTypographyProps={{ fontWeight: 700, fontSize: "1.05rem" }}
+      subheaderTypographyProps={{ fontSize: "0.78rem" }}
       action={action}
       sx={{ pb: 0 }}
     />
@@ -256,12 +262,16 @@ const Analytics = () => {
     analytics.courses.topCourses?.length ??
     0;
   const completionRate = analytics.courses.overallCompletionRate ?? 0;
+  // Revenue has no backing data model in this LMS (no payments/subscriptions
+  // table) unless your backend computes it from something else. Treat as 0
+  // until a real revenue source exists, rather than showing a misleading number.
   const revenue = analytics.teams.revenue ?? 0;
+  const hasRevenueSource = analytics.teams.revenue != null;
 
   // ── Compute % change ──
-  // Priority 1: if the API returns explicit change fields, use them.
-  // Priority 2: derive from trend arrays already in the response.
-  // Priority 3: null → StatCard shows "No comparison data yet".
+  // Priority 1: if the API returns explicit change fields, use them (most accurate).
+  // Priority 2: derive from trend arrays already in the response (approximate).
+  // Priority 3: null → StatCard shows "No comparison data yet" instead of a fake number.
 
   const studentChange = (() => {
     if (analytics.users.studentCountChange != null)
@@ -279,16 +289,43 @@ const Analytics = () => {
     return calcChange(curr, prev);
   })();
 
+  // FIX: This previously fell back to `completionTimeTrend` (avg DAYS to
+  // finish a course) whenever `overallCompletionRateChange` was missing.
+  // That's a completely different metric from completion RATE, and an
+  // increase in "days to complete" was even being shown as a green "good"
+  // trend, which is backwards. Now:
+  //   1. Prefer an explicit `overallCompletionRateChange` from the API.
+  //   2. Otherwise derive a rate-based trend from `completionTimeTrend`
+  //      point counts if the API shape includes a `completions`/`total`
+  //      pair per bucket (safe, same unit as the metric).
+  //   3. Otherwise show "No comparison data yet" — never borrow an
+  //      unrelated metric just to produce a number.
   const completionChange = (() => {
     if (analytics.courses.overallCompletionRateChange != null)
       return analytics.courses.overallCompletionRateChange;
-    const trend =
-      analytics.courses.completionTimeTrend?.map((d) => d.avgDays) ?? [];
+
+    const buckets = analytics.courses.completionRateTrend; // expected: [{ date, rate }]
+    if (Array.isArray(buckets) && buckets.length) {
+      const rates = buckets.map((d) => Number(d.rate) || 0);
+      const { prev, curr } = splitHalves(rates);
+      return calcChange(curr, prev);
+    }
+
+    return null; // no safe same-unit series available — don't guess
+  })();
+
+  // Separate, correctly-labeled metric: average days to complete a course.
+  // Lower is better, so this uses `changeIsInverted` on its own StatCard-style
+  // treatment inside the chart subtitle rather than being folded into the
+  // Completion Rate card above.
+  const avgCompletionDaysChange = (() => {
+    const trend = analytics.courses.completionTimeTrend?.map((d) => d.avgDays) ?? [];
     const { prev, curr } = splitHalves(trend);
     return calcChange(curr, prev);
   })();
 
   const revenueChange = (() => {
+    if (!hasRevenueSource) return null;
     if (analytics.teams.revenueChange != null)
       return analytics.teams.revenueChange;
     const trend = analytics.teams.revenueTrend?.map((d) => d.amount) ?? [];
@@ -321,7 +358,7 @@ const Analytics = () => {
     },
     {
       label: "Revenue",
-      value: `$${(revenue / 1000).toFixed(1)}k`,
+      value: hasRevenueSource ? `$${(revenue / 1000).toFixed(1)}k` : "—",
       change: revenueChange,
       icon: <AttachMoneyRoundedIcon fontSize="small" />,
       color: PALETTE.green,
@@ -515,7 +552,14 @@ const Analytics = () => {
         </ChartCard>
       </Grid>
       <Grid size={{ xs: 12, md: 6 }}>
-        <ChartCard title="Average Course Completion Time">
+        <ChartCard
+          title="Average Course Completion Time"
+          subtitle={
+            avgCompletionDaysChange != null
+              ? `${avgCompletionDaysChange <= 0 ? "▼ faster" : "▲ slower"} ${Math.abs(avgCompletionDaysChange)}% vs. previous period`
+              : undefined
+          }
+        >
           <LineChart
             height={300}
             series={[
