@@ -18,6 +18,7 @@ import {
   CssBaseline,
   Badge,
   Tooltip,
+  InputBase,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -34,6 +35,10 @@ import {
   WorkspacePremium,
   KeyboardArrowDown,
   AutoStories,
+  Search as SearchIcon,
+  DarkMode as DarkModeIcon,
+  LightMode as LightModeIcon,
+  HelpOutline as HelpOutlineIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '@mui/material/styles';
@@ -47,6 +52,7 @@ const NAV_ACTIVE_BG = '#1e1b4b';
 const NAV_TEXT = '#1c2061';
 const NAV_ICON = '#1c2061';
 const NAV_HOVER_BG = '#f1f0fb';
+const NAV_SECTION_LABEL = '#9ca3af';
 
 // ---- motion-wrapped MUI primitives ----
 const MotionListItemButton = motion(ListItemButton);
@@ -84,6 +90,8 @@ const AdminLayout = () => {
   const [notifications, setNotifications] = useState([]);
   const [notificationAnchorEl, setNotificationAnchorEl] = useState(null);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const lastNotificationAtRef = useRef(null);
   const liveNotificationFailureCountRef = useRef(0);
   const liveNotificationsPausedRef = useRef(false);
@@ -95,6 +103,14 @@ const AdminLayout = () => {
 
   const handleDrawerToggle = () => setDrawerOpen((prev) => !prev);
   const handleLogout = () => { logout(); navigate('/login'); };
+  const handleToggleDarkMode = () => setDarkMode((prev) => !prev);
+
+  const handleSearchSubmit = (event) => {
+    event.preventDefault();
+    const query = searchQuery.trim();
+    if (!query) return;
+    navigate(`/admin/users?search=${encodeURIComponent(query)}`);
+  };
 
   const fetchNotifications = async () => {
     try {
@@ -192,21 +208,40 @@ const AdminLayout = () => {
     };
   }, []);
 
-  const menuItems = [
-    { text: 'Dashboard', icon: <Dashboard />, path: '/admin' },
-    { text: 'Users', icon: <People />, path: '/admin/users' },
-    { text: 'Courses', icon: <School />, path: '/admin/courses' },
-    { text: 'Team', icon: <Groups />, path: '/admin/teams' },
-    { text: 'Analytics', icon: <Analytics />, path: '/admin/analytics' },
-    { text: 'Certificates', icon: <WorkspacePremium />, path: '/admin/certificates' },
-    { text: 'Feedback', icon: <Feedback />, path: '/admin/feedback' },
-    ...(user?.user_type === 'ADMIN'
-      ? [
-          { text: 'Approval Dashboard', icon: <Assignment />, path: '/admin/requests' },
-          { text: 'Approved List', icon: <History />, path: '/admin/deleted-actions' },
-        ]
-      : []),
+  // ---- Sidebar grouped into sections to match the reference design ----
+  const navSections = [
+    {
+      label: 'Main Menu',
+      items: [
+        { text: 'Dashboard', icon: <Dashboard />, path: '/admin' },
+        { text: 'Users', icon: <People />, path: '/admin/users' },
+        { text: 'Courses', icon: <School />, path: '/admin/courses' },
+        { text: 'Team', icon: <Groups />, path: '/admin/teams' },
+      ],
+    },
+    {
+      label: 'Reports & Management',
+      items: [
+        { text: 'Analytics', icon: <Analytics />, path: '/admin/analytics' },
+        { text: 'Certificates', icon: <WorkspacePremium />, path: '/admin/certificates' },
+      ],
+    },
+    {
+      label: 'System',
+      items: [
+        { text: 'Feedback', icon: <Feedback />, path: '/admin/feedback' },
+        ...(user?.user_type === 'ADMIN'
+          ? [
+              { text: 'Approval Dashboard', icon: <Assignment />, path: '/admin/requests' },
+              { text: 'Approved List', icon: <History />, path: '/admin/deleted-actions' },
+            ]
+          : []),
+        { text: 'Help Center', icon: <HelpOutlineIcon />, path: '/admin/help' },
+      ],
+    },
   ];
+
+  const expanded = drawerOpen || railHovered;
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', width: '100%', overflow: 'hidden' }}>
@@ -217,7 +252,8 @@ const AdminLayout = () => {
         position="fixed"
         sx={{
           width: '100%',
-          backgroundColor: '#ffffff',
+          //-----navbar background colour-----
+          backgroundColor: '#fff9fa',
           zIndex: (theme) => theme.zIndex.drawer + 1,
           borderRadius: 0,
           boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
@@ -266,7 +302,19 @@ const AdminLayout = () => {
                     transition={{ duration: 0.18, ease: EASE }}
                     style={{ display: 'flex' }}
                   >
-                    <AutoStories sx={{ color: NAV_ACTIVE_BG, fontSize: 28 }} />
+                    <Box
+                      sx={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: '8px',
+                        background: NAV_ACTIVE_BG,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <AutoStories sx={{ color: '#ffffff', fontSize: 18 }} />
+                    </Box>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -274,22 +322,68 @@ const AdminLayout = () => {
           </Tooltip>
 
           {/* Brand (moved here from sidebar) */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mr: 2 }}>
-            {/* <AutoStories sx={{ color: NAV_ACTIVE_BG, fontSize: 24 }} /> */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mr: 3 }}>
             <Typography
               sx={{
                 fontSize: '1.05rem',
                 fontWeight: 700,
                 color: '#111827',
                 letterSpacing: -0.2,
+                // textDecoration: 'underline',
+                // textDecorationColor: 'rgba(17, 24, 39, 0.25)',
+                // textUnderlineOffset: 4,
               }}
             >
               EduPlatform
             </Typography>
           </Box>
 
+          {/* Search */}
+          {/* <Box
+            component="form"
+            onSubmit={handleSearchSubmit}
+            sx={{
+              flexGrow: 1,
+              maxWidth: 420,
+              display: { xs: 'none', sm: 'flex' },
+              alignItems: 'center',
+              gap: 1,
+              px: 1.5,
+              py: 0.6,
+              borderRadius: '10px',
+              backgroundColor: '#f3f4f6',
+              border: '1px solid #e5e7eb',
+              
+            }}
+          >
+            <SearchIcon sx={{ fontSize: 19, color: '#9ca3af' }} />
+            <InputBase
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search students, courses, or reports"
+              sx={{ fontSize: '0.85rem', flex: 1, color: '#374151' }}
+            />
+          </Box> */}
+
           <Box sx={{ flexGrow: 1 }} />
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {/* Dark mode toggle */}
+            <Tooltip title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}>
+              <IconButton onClick={handleToggleDarkMode} sx={{ color: '#374151' }}>
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div
+                    key={darkMode ? 'dark' : 'light'}
+                    initial={{ opacity: 0, rotate: -60, scale: 0.6 }}
+                    animate={{ opacity: 1, rotate: 0, scale: 1 }}
+                    exit={{ opacity: 0, rotate: 60, scale: 0.6 }}
+                    transition={{ duration: 0.18, ease: EASE }}
+                    style={{ display: 'flex' }}
+                  >
+                    {darkMode ? <LightModeIcon /> : <DarkModeIcon />}
+                  </motion.div>
+                </AnimatePresence>
+              </IconButton>
+            </Tooltip>
             {/* Notifications */}
             <IconButton onClick={handleNotificationClick} sx={{ color: '#374151' }}>
               <motion.div
@@ -298,7 +392,11 @@ const AdminLayout = () => {
                 animate={{ scale: [1, 1.15, 1] }}
                 transition={{ duration: 0.3, ease: EASE }}
               >
-                <Badge badgeContent={notifications.filter(n => !n.is_read).length} color="error">
+                <Badge
+                  variant={notifications.some(n => !n.is_read) ? 'dot' : undefined}
+                  badgeContent={notifications.filter(n => !n.is_read).length}
+                  color="error"
+                >
                   <Notifications />
                 </Badge>
               </motion.div>
@@ -331,7 +429,8 @@ const AdminLayout = () => {
             height: 'calc(100% - 64px)',
             overflowX: 'hidden',
             boxSizing: 'border-box',
-            background: '#ffffff',
+            //-----slidebar background colour-----
+            background: '#fff9fa',  
             color: NAV_TEXT,
             transition: 'width 0.25s ease',
             border: 'none',
@@ -347,71 +446,95 @@ const AdminLayout = () => {
         }}
       >
         <MotionBox
-          component={List}
-          sx={{ px: 1.5, pt: 2, pb: 0, flex: 1 }}
+          sx={{ px: 1.5, pt: 2, pb: 0, flex: 1, overflowY: 'auto' }}
           variants={navStagger}
           initial="hidden"
           animate="visible"
         >
-          {menuItems.map((item) => {
-            const isActive = location.pathname === item.path;
-            const expanded = drawerOpen || railHovered;
-            return (
-              <Tooltip key={item.text} title={!expanded ? item.text : ''} placement="right">
-                <MotionListItemButton
-                  onClick={() => navigate(item.path)}
-                  variants={navItemEnter}
-                  whileHover={{ x: isActive ? 0 : 3 }}
-                  whileTap={{ scale: 0.97 }}
+          {navSections.map((section, sectionIdx) => (
+            <Box key={section.label} sx={{ mb: 0.5 }}>
+              {expanded ? (
+                <Typography
                   sx={{
-                    justifyContent: expanded ? 'flex-start' : 'center',
-                    px: expanded ? 2 : 0,
-                    py: 1.1,
-                    borderRadius: '12px',
-                    my: 0.4,
-                    backgroundColor: isActive ? NAV_ACTIVE_BG : 'transparent',
-                    color: isActive ? '#ffffff' : NAV_TEXT,
-                    transition: 'background-color 0.15s ease',
-                    '&:hover': {
-                      backgroundColor: isActive ? NAV_ACTIVE_BG : NAV_HOVER_BG,
-                      color: isActive ? '#ffffff' : NAV_TEXT,
-                    },
-                    minHeight: 46,
+                    px: 1.5,
+                    pt: sectionIdx === 0 ? 0 : 1.75,
+                    pb: 0.75,
+                    fontSize: '0.68rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    color: NAV_SECTION_LABEL,
                   }}
                 >
-                  <ListItemIcon
-                    sx={{
-                      minWidth: 0,
-                      mr: expanded ? 1.5 : 'auto',
-                      ml: expanded ? 0 : 'auto',
-                      justifyContent: 'center',
-                      color: isActive ? '#ffffff' : NAV_ICON,
-                      display: 'flex',
-                      alignItems: 'center',
-                      fontSize: 20,
-                      '& svg': { fontSize: 20 },
-                    }}
-                  >
-                    {item.icon}
-                  </ListItemIcon>
-                  {expanded && (
-                    <ListItemText
-                      primary={item.text}
-                      primaryTypographyProps={{
-                        fontSize: '0.92rem',
-                        fontWeight: isActive ? 600 : 500,
-                        letterSpacing: 0,
-                      }}
-                    />
-                  )}
-                </MotionListItemButton>
-              </Tooltip>
-            );
-          })}
+                  {section.label}
+                </Typography>
+              ) : (
+                sectionIdx > 0 && (
+                  <Box sx={{ my: 1, mx: 1, borderTop: '1px solid #eef0f5' }} />
+                )
+              )}
+              <List sx={{ p: 0 }}>
+                {section.items.map((item) => {
+                  const isActive = location.pathname === item.path;
+                  return (
+                    <Tooltip key={item.text} title={!expanded ? item.text : ''} placement="right">
+                      <MotionListItemButton
+                        onClick={() => navigate(item.path)}
+                        variants={navItemEnter}
+                        whileHover={{ x: isActive ? 0 : 3 }}
+                        whileTap={{ scale: 0.97 }}
+                        sx={{
+                          justifyContent: expanded ? 'flex-start' : 'center',
+                          px: expanded ? 2 : 0,
+                          py: 1.1,
+                          borderRadius: '12px',
+                          my: 0.4,
+                          backgroundColor: isActive ? NAV_ACTIVE_BG : 'transparent',
+                          color: isActive ? '#ffffff' : NAV_TEXT,
+                          transition: 'background-color 0.15s ease',
+                          '&:hover': {
+                            backgroundColor: isActive ? NAV_ACTIVE_BG : NAV_HOVER_BG,
+                            color: isActive ? '#ffffff' : NAV_TEXT,
+                          },
+                          minHeight: 46,
+                        }}
+                      >
+                        <ListItemIcon
+                          sx={{
+                            minWidth: 0,
+                            mr: expanded ? 1.5 : 'auto',
+                            ml: expanded ? 0 : 'auto',
+                            justifyContent: 'center',
+                            color: isActive ? '#ffffff' : NAV_ICON,
+                            display: 'flex',
+                            alignItems: 'center',
+                            fontSize: 20,
+                            '& svg': { fontSize: 20 },
+                          }}
+                        >
+                          {item.icon}
+                        </ListItemIcon>
+                        {expanded && (
+                          <ListItemText
+                            primary={item.text}
+                            primaryTypographyProps={{
+                              fontSize: '0.92rem',
+                              fontWeight: isActive ? 600 : 500,
+                              letterSpacing: 0,
+                            }}
+                          />
+                        )}
+                      </MotionListItemButton>
+                    </Tooltip>
+                  );
+                })}
+              </List>
+            </Box>
+          ))}
         </MotionBox>
 
         {/* User profile at bottom */}
-        {(drawerOpen || railHovered) && (
+        {expanded && (
           <Box
             sx={{
               px: 2,

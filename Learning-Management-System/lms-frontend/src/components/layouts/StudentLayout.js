@@ -10,12 +10,14 @@ import {
   Divider,
   Drawer,
   IconButton,
+  InputAdornment,
   List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
   Menu,
   MenuItem,
+  TextField,
   Toolbar,
   Typography,
   Button,
@@ -23,28 +25,29 @@ import {
 } from '@mui/material';
 import {
   Menu as MenuIcon,
-  MenuOpen as MenuOpenIcon
+  MenuOpen as MenuOpenIcon,
+  Search as SearchIcon,
+  StarBorderRounded as StarBorderRoundedIcon,
+  NotificationsNoneRounded as NotificationsNoneRoundedIcon,
+  School as SchoolIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import { CourseProgressProvider, useCourseProgress } from '../../contexts/CourseProgressContext';
 import api from '../../api';
 import { useTheme } from '@mui/material/styles';
-import vdartLogo from '../../assets/vdartacademylogo1 1.png';
 import dashboardIcon from '../../assets/Container11.png';
 import courseCatalogIcon from '../../assets/container12.png';
 import myCoursesIcon from '../../assets/Container13.png';
 import creditPointsIcon from '../../assets/Container14.png';
-import headerBellIcon from '../../assets/header1.png';
-import headerProfileIcon from '../../assets/header3.png';
 
-const expandedWidth = 200;
-const collapsedWidth = 64;
+const expandedWidth = 220;
+const collapsedWidth = 76;
 const SIDEBAR_COLORS = {
-  text: '#475569',
-  active: '#1E40AF',
-  activeBackground: '#DBEAFE',
+  text: '#5B6B7A',
+  active: '#1E5FD9',
+  activeBackground: '#E7EFFE',
   surface: '#FFFFFF',
-  border: 'rgba(71, 85, 105, 0.12)',
+  border: 'rgba(15, 23, 42, 0.08)',
 };
 const STUDENT_SURFACE_BACKGROUND = `
   radial-gradient(circle at 50% 12%, rgba(29, 78, 216, 0.10) 0%, rgba(219, 234, 254, 0.28) 26%, rgba(255, 255, 255, 0) 55%),
@@ -53,7 +56,6 @@ const STUDENT_SURFACE_BACKGROUND = `
 
 const StudentLayout = () => {
   const [drawerOpen, setDrawerOpen] = useState(true);
-  const [logoHovered, setLogoHovered] = useState(false);
   const [railHovered, setRailHovered] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -61,6 +63,7 @@ const StudentLayout = () => {
   const [notificationAnchorEl, setNotificationAnchorEl] = useState(null);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
   const [creditPoints, setCreditPoints] = useState(0);
+  const [searchValue, setSearchValue] = useState('');
   const lastNotificationAtRef = useRef(null);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -84,6 +87,14 @@ const StudentLayout = () => {
     window.setTimeout(() => {
       setProfileOpen(true);
     }, 0);
+  };
+
+  const handleSearchSubmit = (event) => {
+    event.preventDefault();
+    const query = searchValue.trim();
+    if (query) {
+      navigate(`/catalog?q=${encodeURIComponent(query)}`);
+    }
   };
 
   // Fetch notifications
@@ -192,6 +203,13 @@ const StudentLayout = () => {
     // { text: 'Performance', icon: <Timeline />, path: '/performance' }
   ];
 
+  const supportItems = [
+    { text: 'Help Center', path: '/help' },
+    { text: 'Settings', path: '/settings' },
+  ];
+
+  const unreadNotificationCount = notifications.filter((n) => !n.is_read).length;
+
   // Detect if on course page
   const isCourseView = location.pathname.startsWith('/course/');
 
@@ -219,6 +237,8 @@ const StudentLayout = () => {
     return () => clearInterval(interval);
   }, []);
 
+  const expanded = drawerOpen || railHovered;
+
   return (
     <CourseProgressProvider>
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
@@ -230,11 +250,11 @@ const StudentLayout = () => {
         onMouseEnter={() => !drawerOpen && setRailHovered(true)}
         onMouseLeave={() => setRailHovered(false)}
         sx={{
-          width: drawerOpen ? expandedWidth : railHovered ? expandedWidth : collapsedWidth,
+          width: expanded ? expandedWidth : collapsedWidth,
           flexShrink: 0,
           transition: 'width 0.25s ease',
           '& .MuiDrawer-paper': {
-            width: drawerOpen ? expandedWidth : railHovered ? expandedWidth : collapsedWidth,
+            width: expanded ? expandedWidth : collapsedWidth,
             boxSizing: 'border-box',
             overflowX: 'hidden',
             transition: 'width 0.25s ease',
@@ -242,32 +262,74 @@ const StudentLayout = () => {
             color: SIDEBAR_COLORS.text,
             border: 'none',
             borderRight: `1px solid ${SIDEBAR_COLORS.border}`,
-            boxShadow: railHovered && !drawerOpen
-              ? '4px 0 24px rgba(0,0,0,0.10)'
-              : '2px 0 8px rgba(0,0,0,0.03)',
-            zIndex: theme.zIndex.drawer,
+            display: 'flex',
+            flexDirection: 'column',
+            zIndex: theme.zIndex.drawer + 2,
           }
         }}
       >
-        <Toolbar
+        {/* Branded logo block */}
+        <Box
           sx={{
-            minHeight: '64px !important',
-            px: 0,
-            py: 0,
-            background: SIDEBAR_COLORS.surface,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.25,
+            px: expanded ? 2 : 0,
+            py: 2.25,
+            justifyContent: expanded ? 'flex-start' : 'center',
           }}
-        />
+        >
+          <Box
+            sx={{
+              width: 40,
+              height: 40,
+              borderRadius: '10px',
+              flexShrink: 0,
+              background: 'linear-gradient(135deg, #16233F 0%, #1B4CA0 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <SchoolIcon sx={{ color: '#fff', fontSize: 22 }} />
+          </Box>
+          {expanded && (
+            <Box sx={{ minWidth: 0 }}>
+              <Typography
+                sx={{
+                  fontSize: '0.98rem',
+                  fontWeight: 800,
+                  color: '#0F172A',
+                  lineHeight: 1.15,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                VDart Academy
+              </Typography>
+              <Typography
+                sx={{
+                  fontSize: '0.72rem',
+                  fontWeight: 600,
+                  color: SIDEBAR_COLORS.text,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Learning Portal
+              </Typography>
+            </Box>
+          )}
+        </Box>
         <Divider sx={{ borderColor: SIDEBAR_COLORS.border }} />
         <List
           sx={{
             px: 1,
             py: 1.75,
             width: '100%',
+            flexGrow: 1,
           }}
         >
           {menuItems.map((item) => {
             const isActive = location && location.pathname === item.path;
-            const expanded = drawerOpen || railHovered;
             return (
               <Tooltip key={item.text} title={!expanded ? item.text : ''} placement="right">
                 <ListItemButton
@@ -279,15 +341,15 @@ const StudentLayout = () => {
                     width: '100%',
                     px: expanded ? 1.5 : 0,
                     py: 1,
-                    my: 0.6,
-                    minHeight: 40,
-                    borderRadius: '12px',
+                    my: 0.4,
+                    minHeight: 42,
+                    borderRadius: '10px',
                     backgroundColor: isActive ? SIDEBAR_COLORS.activeBackground : 'transparent',
                     color: isActive ? SIDEBAR_COLORS.active : SIDEBAR_COLORS.text,
                     boxShadow: 'none',
-                    transition: 'all 0.25s cubic-bezier(.4,0,.2,1)',
+                    transition: 'all 0.2s ease',
                     '&:hover': {
-                      backgroundColor: isActive ? SIDEBAR_COLORS.activeBackground : 'rgba(219,234,254,0.55)',
+                      backgroundColor: isActive ? SIDEBAR_COLORS.activeBackground : 'rgba(30,95,217,0.06)',
                       color: isActive ? SIDEBAR_COLORS.active : SIDEBAR_COLORS.text,
                     },
                   }}
@@ -347,54 +409,155 @@ const StudentLayout = () => {
             );
           })}
         </List>
+
+        {/* Support & Settings */}
+        <Box sx={{ px: 1, pb: 1 }}>
+          {expanded && (
+            <Typography
+              sx={{
+                px: 1.5,
+                pb: 1,
+                fontSize: '0.68rem',
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                color: 'rgba(91,107,122,0.7)',
+              }}
+            >
+              Support &amp; Settings
+            </Typography>
+          )}
+          <List sx={{ py: 0 }}>
+            {supportItems.map((item) => (
+              <Tooltip key={item.text} title={!expanded ? item.text : ''} placement="right">
+                <ListItemButton
+                  onClick={() => navigate(item.path)}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: expanded ? 'flex-start' : 'center',
+                    px: expanded ? 1.5 : 0,
+                    py: 0.9,
+                    my: 0.3,
+                    minHeight: 38,
+                    borderRadius: '10px',
+                    color: SIDEBAR_COLORS.text,
+                    '&:hover': { backgroundColor: 'rgba(30,95,217,0.06)' },
+                  }}
+                >
+                  <ListItemText
+                    primary={item.text}
+                    sx={{
+                      display: expanded ? 'block' : 'none',
+                      '& .MuiListItemText-primary': { fontSize: 13.5, fontWeight: 600, color: SIDEBAR_COLORS.text },
+                    }}
+                  />
+                </ListItemButton>
+              </Tooltip>
+            ))}
+          </List>
+        </Box>
+
+        <Divider sx={{ borderColor: SIDEBAR_COLORS.border }} />
+
+        {/* User footer */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, px: expanded ? 1.75 : 0, py: 1.75, justifyContent: expanded ? 'flex-start' : 'center' }}>
+          <Avatar
+            src={user?.profile_picture || undefined}
+            imgProps={{ referrerPolicy: 'no-referrer' }}
+            sx={{ width: 36, height: 36, bgcolor: 'primary.main' }}
+          >
+            {user?.username?.[0]?.toUpperCase()}
+          </Avatar>
+          {expanded && (
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography noWrap sx={{ fontSize: 13.5, fontWeight: 700, color: '#0F172A' }}>
+                {user?.username || 'Student'}
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Box sx={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: '#22c55e' }} />
+                <Typography sx={{ fontSize: 11.5, color: SIDEBAR_COLORS.text }}>Online</Typography>
+              </Box>
+            </Box>
+          )}
+        </Box>
       </Drawer>
 
       {/* Top AppBar */}
       <AppBar
         position="fixed"
+        elevation={0}
         sx={{
           zIndex: (theme) => theme.zIndex.drawer + 1,
           width: '100%',
           ml: 0,
           borderRadius: 0,
-          boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+          background: '#FFFFFF',
+          borderBottom: `1px solid ${SIDEBAR_COLORS.border}`,
+          boxShadow: '0 1px 2px rgba(15,23,42,0.03)',
         }}
       >
         <Toolbar sx={{ gap: 1.5 }}>
           <Tooltip title={drawerOpen ? 'Collapse Sidebar' : 'Expand Sidebar'}>
-            <Box
-              onMouseEnter={() => setLogoHovered(true)}
-              onMouseLeave={() => setLogoHovered(false)}
+            <IconButton
               onClick={toggleDrawer}
               sx={{
-                mr: 2,
-                width: 44,
-                height: 44,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                mr: 1,
+                width: 40,
+                height: 40,
                 borderRadius: '10px',
-                cursor: 'pointer',
-                transition: 'background 0.2s',
-                '&:hover': { background: 'rgba(255,255,255,0.15)' },
+                color: SIDEBAR_COLORS.text,
+                '&:hover': { background: 'rgba(30,95,217,0.06)' },
               }}
             >
-              {logoHovered
-                ? (drawerOpen ? <MenuOpenIcon sx={{ color: theme.palette.primary.main, fontSize: 26 }} /> : <MenuIcon sx={{ color: theme.palette.primary.main, fontSize: 26 }} />)
-                : <Box component="img" src={vdartLogo} alt="VDart" sx={{ width: 48, height: 48, objectFit: 'contain' }} />}
-            </Box>
+              {drawerOpen ? <MenuOpenIcon sx={{ fontSize: 22 }} /> : <MenuIcon sx={{ fontSize: 22 }} />}
+            </IconButton>
           </Tooltip>
 
+          <Typography sx={{ fontSize: '1.1rem', fontWeight: 800, color: '#0F172A', display: { xs: 'none', sm: 'block' } }}>
+            Overview
+          </Typography>
+
           <Box sx={{ flexGrow: 1 }} />
-          
-          {/* Icons moved to the right side */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+
+          {/* Search bar */}
+          <Box component="form" onSubmit={handleSearchSubmit} sx={{ display: { xs: 'none', md: 'block' }, width: 280 }}>
+            <TextField
+              size="small"
+              placeholder="Search courses..."
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+              fullWidth
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ fontSize: 19, color: SIDEBAR_COLORS.text }} />
+                  </InputAdornment>
+                ),
+                sx: {
+                  borderRadius: '999px',
+                  backgroundColor: '#F3F6FB',
+                  fontSize: 14,
+                  '& fieldset': { border: 'none' },
+                },
+              }}
+            />
+          </Box>
+
+          {/* Icons */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Tooltip title="Saved courses">
+              <IconButton sx={{ width: 38, height: 38, color: SIDEBAR_COLORS.text }}>
+                <StarBorderRoundedIcon sx={{ fontSize: 22 }} />
+              </IconButton>
+            </Tooltip>
+
             <Tooltip title="Credit Points">
               <Box
                 sx={{
                   minWidth: 36,
                   height: 36,
-                  px: 1,
+                  px: 1.25,
                   borderRadius: '999px',
                   display: 'flex',
                   alignItems: 'center',
@@ -404,36 +567,40 @@ const StudentLayout = () => {
                   boxShadow: 'none',
                 }}
               >
-                <Typography
-                  sx={{
-                    fontSize: 14,
-                    fontWeight: 800,
-                    lineHeight: 1,
-                    textAlign: 'center',
-                    color: '#1F2937',
-                  }}
-                >
+                <Typography sx={{ fontSize: 14, fontWeight: 800, lineHeight: 1, color: '#1F2937' }}>
                   {creditPoints}
                 </Typography>
               </Box>
             </Tooltip>
+
             <IconButton
-              color="inherit"
               onClick={handleNotificationClick}
-              sx={{ width: 36, height: 36, p: 0 }}
+              sx={{ width: 38, height: 38, color: SIDEBAR_COLORS.text }}
             >
-              <Box
-                component="img"
-                src={headerBellIcon}
-                alt=""
-                sx={{ width: 32, height: 36, display: 'block' }}
-              />
+              <Box sx={{ position: 'relative', display: 'flex' }}>
+                <NotificationsNoneRoundedIcon sx={{ fontSize: 22 }} />
+                {unreadNotificationCount > 0 && (
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      top: -1,
+                      right: -1,
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      backgroundColor: '#EF4444',
+                      border: '1.5px solid #fff',
+                    }}
+                  />
+                )}
+              </Box>
             </IconButton>
-            <IconButton onClick={(e) => setAnchorEl(e.currentTarget)} color="inherit">
+
+            <IconButton onClick={(e) => setAnchorEl(e.currentTarget)}>
               <Avatar
-                src={user?.profile_picture || headerProfileIcon}
+                src={user?.profile_picture || undefined}
                 imgProps={{ referrerPolicy: 'no-referrer' }}
-                sx={{ bgcolor: 'secondary.main', width: 48, height: 48 }}
+                sx={{ bgcolor: 'secondary.main', width: 38, height: 38 }}
               >
                 {user?.username?.[0]?.toUpperCase()}
               </Avatar>

@@ -6,8 +6,6 @@ import {
     Grid,
     Paper,
     Typography,
-    Card,
-    CardContent,
     Button,
     LinearProgress,
     CircularProgress,
@@ -25,10 +23,11 @@ import {
     TrendingUpRounded as TrendingUpRoundedIcon,
     PendingActionsRounded as PendingActionsRoundedIcon,
     TaskAltRounded as TaskAltRoundedIcon,
-    GroupsRounded as GroupsRoundedIcon,
     PersonAddAlt1Rounded as PersonAddAlt1RoundedIcon,
-    KeyboardArrowDown as KeyboardArrowDownIcon,
     NorthEast as NorthEastIcon,
+    EmojiEvents as EmojiEventsIcon,
+    NotificationsActive as NotificationsActiveIcon,
+    RocketLaunchRounded as RocketLaunchRoundedIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api';
@@ -46,116 +45,93 @@ const formatStatNumber = (value) => {
     return roundedValue < 100 ? String(roundedValue).padStart(2, '0') : String(roundedValue);
 };
 
-const StatCard = ({ title, value, icon, accent }) => {
+const StatCard = ({ title, value, icon, accent, badge }) => {
     const theme = useTheme();
 
     return (
-        <Card
+        <Paper
             elevation={0}
             sx={{
                 height: '100%',
-                minHeight: { xs: 90, sm: 100 },
-                borderRadius: '18px',
-                background: theme.palette.mode === 'dark'
-                    ? 'linear-gradient(180deg, rgba(19, 47, 76, 0.96) 0%, rgba(12, 30, 51, 0.98) 100%)'
-                    : 'linear-gradient(180deg, #ffffff 0%, #fbfdff 100%)',
+                minHeight: { xs: 108, sm: 118 },
+                borderRadius: '16px',
+                p: { xs: 1.75, sm: 2 },
+                background: theme.palette.mode === 'dark' ? '#16233a' : '#FFFFFF',
                 border: theme.palette.mode === 'dark'
-                    ? '1px solid rgba(148, 163, 184, 0.18)'
-                    : '1px solid rgba(148, 163, 184, 0.22)',
-                cursor: 'default',
-                overflow: 'visible',
-                position: 'relative',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    ? '1px solid rgba(148, 163, 184, 0.14)'
+                    : '1px solid rgba(15, 23, 42, 0.08)',
                 boxShadow: theme.palette.mode === 'dark'
-                    ? '0 16px 32px rgba(0, 0, 0, 0.28)'
-                    : '0 18px 34px rgba(15, 23, 42, 0.1), 0 8px 16px rgba(15, 23, 42, 0.06)',
-                '&::after': {
-                    content: '""',
-                    position: 'absolute',
-                    left: '12%',
-                    right: '12%',
-                    bottom: -16,
-                    height: 28,
-                    borderRadius: '999px',
-                    background: 'rgba(15, 23, 42, 0.12)',
-                    filter: 'blur(18px)',
-                    opacity: theme.palette.mode === 'dark' ? 0.16 : 0.35,
-                    zIndex: -1,
-                },
+                    ? '0 2px 10px rgba(0,0,0,0.3)'
+                    : '0 2px 10px rgba(15, 23, 42, 0.05)',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                gap: 1,
+                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
                 '&:hover': {
-                    transform: 'translateY(-6px)',
+                    transform: 'translateY(-3px)',
                     boxShadow: theme.palette.mode === 'dark'
-                        ? '0 22px 40px rgba(0, 0, 0, 0.34)'
-                        : '0 24px 44px rgba(15, 23, 42, 0.14), 0 12px 24px rgba(15, 23, 42, 0.08)',
+                        ? '0 8px 22px rgba(0,0,0,0.38)'
+                        : '0 10px 24px rgba(15, 23, 42, 0.1)',
                 },
             }}
         >
-            <CardContent
-                sx={{
-                    height: '100%',
-                    px: { xs: 1.25, sm: 1.5 },
-                    py: { xs: 1.35, sm: 1.5 },
-                    '&:last-child': {
-                        pb: { xs: 1.35, sm: 1.5 },
-                    },
-                }}
-            >
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                 <Box
                     sx={{
-                        height: '100%',
+                        width: 34,
+                        height: 34,
+                        borderRadius: '10px',
+                        background: accent.soft,
+                        color: accent.main,
                         display: 'flex',
-                        flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        textAlign: 'center',
-                        gap: 0.8,
                     }}
                 >
+                    {React.cloneElement(icon, { sx: { fontSize: 19, color: accent.main } })}
+                </Box>
+                {badge ? (
                     <Box
                         sx={{
-                            width: 38,
-                            height: 38,
-                            borderRadius: '50%',
+                            px: 1.1,
+                            py: 0.3,
+                            borderRadius: '999px',
                             background: accent.soft,
                             color: accent.main,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            border: `1px solid ${accent.border}`,
-                            boxShadow: `inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 10px 20px ${accent.glow}`,
-                            transition: 'all 0.3s ease',
+                            fontSize: '0.68rem',
+                            fontWeight: 700,
+                            whiteSpace: 'nowrap',
                         }}
                     >
-                        {icon}
+                        {badge}
                     </Box>
-                    <Box>
-                        <Typography
-                            sx={{
-                                mb: 0.35,
-                                color: theme.palette.mode === 'dark' ? 'rgba(226, 232, 240, 0.82)' : '#5f6d7a',
-                                fontSize: { xs: '0.68rem', sm: '0.74rem' },
-                                fontWeight: 700,
-                                letterSpacing: '0.08em',
-                                textTransform: 'uppercase',
-                            }}
-                        >
-                            {title}
-                        </Typography>
-                        <Typography
-                            sx={{
-                                color: theme.palette.mode === 'dark' ? '#f8fafc' : '#212934',
-                                fontSize: { xs: '1.3rem', sm: '1.45rem' },
-                                fontWeight: 700,
-                                lineHeight: 1,
-                                letterSpacing: '-0.03em',
-                            }}
-                        >
-                            {value}
-                        </Typography>
-                    </Box>
-                </Box>
-            </CardContent>
-        </Card>
+                ) : null}
+            </Box>
+            <Box>
+                <Typography
+                    sx={{
+                        color: theme.palette.mode === 'dark' ? '#f8fafc' : '#0f172a',
+                        fontSize: { xs: '1.5rem', sm: '1.65rem' },
+                        fontWeight: 800,
+                        lineHeight: 1,
+                        letterSpacing: '-0.02em',
+                        mb: 0.4,
+                    }}
+                >
+                    {value}
+                </Typography>
+                <Typography
+                    sx={{
+                        color: theme.palette.mode === 'dark' ? 'rgba(226, 232, 240, 0.65)' : '#64748b',
+                        fontSize: { xs: '0.78rem', sm: '0.82rem' },
+                        fontWeight: 600,
+                    }}
+                >
+                    {title}
+                </Typography>
+            </Box>
+        </Paper>
     );
 };
 
@@ -257,29 +233,59 @@ const AttendanceCard = ({ attendance }) => {
     );
 };
 
-const PercentageCard = ({ percentage }) => {
+// ---------------------------------------------------------------------------
+// Learning Trends — real bar-chart derived from the student's own activity
+// log, with a Week / Month toggle (mirrors the "Learning Trends" widget in
+// the Stitch mockup).
+// ---------------------------------------------------------------------------
+const LearningTrendsCard = ({ activityLog }) => {
     const theme = useTheme();
-    const values = [56, 62, 45, 52, 67, 58, 66, 61, 84, 50, 47, 63];
-    const width = 360;
-    const height = 155;
-    const paddingX = 10;
-    const paddingY = 12;
-    const step = (width - paddingX * 2) / (values.length - 1);
-    const chartHeight = height - paddingY * 2;
-    const points = values
-        .map((value, index) => {
-            const x = paddingX + index * step;
-            const y = height - paddingY - (value / 100) * chartHeight;
-            return `${x},${y}`;
-        })
-        .join(' ');
-    const areaPoints = `${paddingX},${height - paddingY} ${points} ${width - paddingX},${height - paddingY}`;
+    const [range, setRange] = useState('week'); // 'week' | 'month'
+
+    const buckets = useMemo(() => {
+        const log = Array.isArray(activityLog) ? activityLog : [];
+        const now = new Date();
+        const count = 12;
+
+        if (range === 'week') {
+            // last 12 days
+            return Array.from({ length: count }, (_, i) => {
+                const day = new Date(now);
+                day.setHours(0, 0, 0, 0);
+                day.setDate(day.getDate() - (count - 1 - i));
+                const label = day.toLocaleDateString('en-US', { weekday: 'narrow' });
+                const total = log.filter((item) => {
+                    const ts = item?.timestamp ? new Date(item.timestamp) : null;
+                    return ts && ts.toDateString() === day.toDateString();
+                }).length;
+                return { label, value: total };
+            });
+        }
+
+        // last 12 months
+        return Array.from({ length: count }, (_, i) => {
+            const month = new Date(now.getFullYear(), now.getMonth() - (count - 1 - i), 1);
+            const label = month.toLocaleDateString('en-US', { month: 'narrow' });
+            const total = log.filter((item) => {
+                const ts = item?.timestamp ? new Date(item.timestamp) : null;
+                return ts && ts.getFullYear() === month.getFullYear() && ts.getMonth() === month.getMonth();
+            }).length;
+            return { label, value: total };
+        });
+    }, [activityLog, range]);
+
+    const maxValue = Math.max(1, ...buckets.map((b) => b.value));
+    const hasActivity = buckets.some((b) => b.value > 0);
+    const highlightIndex = buckets.reduce(
+        (best, b, i) => (b.value > buckets[best].value ? i : best),
+        0
+    );
 
     return (
         <Paper
             elevation={0}
             sx={{
-                p: { xs: 1.5, sm: 2 },
+                p: { xs: 2, sm: 2.5 },
                 minHeight: { xs: 260, sm: 290 },
                 borderRadius: '24px',
                 background: theme.palette.mode === 'dark'
@@ -296,77 +302,231 @@ const PercentageCard = ({ percentage }) => {
                 gap: 1.5,
             }}
         >
-            <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                 <Box>
-                    <Typography sx={{ fontSize: { xs: '1rem', sm: '1.2rem' }, fontWeight: 500, color: '#111' }}>
-                        Percentage
+                    <Typography sx={{ fontSize: { xs: '1rem', sm: '1.2rem' }, fontWeight: 700, color: theme.palette.mode === 'dark' ? '#fff' : '#111' }}>
+                        Learning Trends
                     </Typography>
-                    <Typography sx={{ mt: 1, fontSize: { xs: '0.8rem', sm: '0.9rem' }, color: '#8b8ba7' }}>
-                        Score in 2024
+                    <Typography sx={{ fontSize: { xs: '0.76rem', sm: '0.82rem' }, color: '#8b8ba7', mt: 0.25 }}>
+                        {range === 'week' ? 'Daily activity over the last 12 days' : 'Monthly activity over the last 12 months'}
                     </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, mt: 0.25 }}>
-                        <Typography sx={{ fontSize: { xs: '1.8rem', sm: '2.2rem' }, lineHeight: 1, fontWeight: 700, color: '#27264c' }}>
-                            {percentage}%
-                        </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: '#15803d', fontWeight: 700 }}>
-                            <Box sx={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#15803d' }} />
-                            <Typography sx={{ fontSize: '0.95rem' }}>2.3%</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', gap: 0.5, background: 'rgba(148, 163, 184, 0.12)', borderRadius: '999px', p: 0.4 }}>
+                    {['month', 'week'].map((key) => (
+                        <Box
+                            key={key}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => setRange(key)}
+                            sx={{
+                                px: 1.4,
+                                py: 0.45,
+                                borderRadius: '999px',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                textTransform: 'capitalize',
+                                color: range === key ? '#fff' : '#8b8ba7',
+                                background: range === key ? '#2563eb' : 'transparent',
+                                transition: 'all 0.2s ease',
+                            }}
+                        >
+                            {key}
                         </Box>
-                    </Box>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: '#111' }}>
-                    <Typography sx={{ fontSize: '0.85rem', color: '#111' }}>Yearly</Typography>
-                    <KeyboardArrowDownIcon sx={{ fontSize: 18 }} />
-                </Box>
-            </Box>
-
-            <Box sx={{ flexGrow: 1, width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-                <Box sx={{ width: '100%', height: { xs: 110, sm: 140 }, position: 'relative' }}>
-                    <svg viewBox={`0 0 ${width} ${height}`} width="100%" height="100%" preserveAspectRatio="none">
-                        <defs>
-                            <linearGradient id="percentage-area-fill" x1="0" x2="0" y1="0" y2="1">
-                                <stop offset="0%" stopColor="#76b8ff" stopOpacity="0.55" />
-                                <stop offset="100%" stopColor="#76b8ff" stopOpacity="0.06" />
-                            </linearGradient>
-                        </defs>
-                        <g>
-                            {[0, 1, 2, 3, 4].map((line) => (
-                                <line
-                                    key={line}
-                                    x1="0"
-                                    x2={width}
-                                    y1={paddingY + line * ((height - paddingY * 2) / 4)}
-                                    y2={paddingY + line * ((height - paddingY * 2) / 4)}
-                                    stroke="rgba(148, 163, 184, 0.16)"
-                                    strokeWidth="1"
-                                />
-                            ))}
-                            <polygon points={areaPoints} fill="url(#percentage-area-fill)" />
-                            <polyline points={points} fill="none" stroke="#4a90e2" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                            {values.map((value, index) => {
-                                const x = paddingX + index * step;
-                                const y = height - paddingY - (value / 100) * chartHeight;
-                                return index === 8 ? (
-                                    <g key={index}>
-                                        <circle cx={x} cy={y} r="4" fill="#4a90e2" stroke="#fff" strokeWidth="2" />
-                                        <line x1={x} x2={x} y1={y} y2={height - paddingY} stroke="#4a90e2" strokeWidth="1.5" />
-                                        <path d={`M ${x - 28} ${y - 42} h 46 a 12 12 0 0 1 12 12 v 12 a 12 12 0 0 1 -12 12 h -46 a 12 12 0 0 1 -12 -12 v -12 a 12 12 0 0 1 12 -12 z`} fill="#000" />
-                                        <text x={x - 6} y={y - 22} fill="#fff" fontSize="9" textAnchor="middle">score</text>
-                                        <text x={x - 6} y={y - 8} fill="#fff" fontSize="12" fontWeight="700" textAnchor="middle">80</text>
-                                    </g>
-                                ) : null;
-                            })}
-                        </g>
-                    </svg>
-                </Box>
-                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: 0.5, mt: 0.5, px: 0.5 }}>
-                    {['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'].map((month) => (
-                        <Typography key={month} sx={{ fontSize: '0.55rem', color: '#8b8ba7', textAlign: 'center', letterSpacing: '0.02em' }}>
-                            {month}
-                        </Typography>
                     ))}
                 </Box>
             </Box>
+
+            <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'flex-end', gap: { xs: 0.75, sm: 1.25 }, px: 0.5, pb: 1 }}>
+                {buckets.map((bucket, index) => {
+                    const heightPct = Math.max(6, Math.round((bucket.value / maxValue) * 100));
+                    const isPeak = hasActivity && index === highlightIndex;
+                    return (
+                        <Box key={index} sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.6 }}>
+                            <Tooltip title={`${bucket.value} activit${bucket.value === 1 ? 'y' : 'ies'}`} arrow>
+                                <Box
+                                    sx={{
+                                        width: '100%',
+                                        maxWidth: 22,
+                                        height: { xs: 90, sm: 120 },
+                                        display: 'flex',
+                                        alignItems: 'flex-end',
+                                    }}
+                                >
+                                    <Box
+                                        sx={{
+                                            width: '100%',
+                                            height: `${heightPct}%`,
+                                            borderRadius: '6px',
+                                            background: isPeak
+                                                ? 'linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%)'
+                                                : 'rgba(148, 163, 184, 0.28)',
+                                            transition: 'height 0.3s ease',
+                                        }}
+                                    />
+                                </Box>
+                            </Tooltip>
+                            <Typography sx={{ fontSize: '0.62rem', color: '#8b8ba7', fontWeight: 600 }}>
+                                {bucket.label}
+                            </Typography>
+                        </Box>
+                    );
+                })}
+            </Box>
+        </Paper>
+    );
+};
+
+// ---------------------------------------------------------------------------
+// Notifications — surfaces the most recent real milestone (course completed)
+// and the most time-sensitive item (a course still in progress) so the panel
+// never fabricates data that doesn't exist in the schema.
+// ---------------------------------------------------------------------------
+const NotificationsCard = ({ items }) => {
+    const theme = useTheme();
+    const list = Array.isArray(items) ? items.slice(0, 3) : [];
+
+    return (
+        <Paper
+            elevation={0}
+            sx={{
+                p: { xs: 1.75, sm: 2 },
+                borderRadius: '20px',
+                height: '100%',
+                background: theme.palette.mode === 'dark' ? '#16233a' : '#FFFFFF',
+                border: theme.palette.mode === 'dark'
+                    ? '1px solid rgba(148, 163, 184, 0.14)'
+                    : '1px solid rgba(15, 23, 42, 0.08)',
+                boxShadow: theme.palette.mode === 'dark'
+                    ? '0 2px 10px rgba(0,0,0,0.3)'
+                    : '0 2px 10px rgba(15, 23, 42, 0.05)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 1.25,
+            }}
+        >
+            <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: theme.palette.mode === 'dark' ? '#fff' : '#0f172a' }}>
+                Notifications
+            </Typography>
+
+            {list.length === 0 ? (
+                <Box sx={{ py: 2, textAlign: 'center' }}>
+                    <Typography sx={{ fontSize: '0.82rem', color: '#8b8ba7' }}>
+                        You're all caught up — nothing new right now.
+                    </Typography>
+                </Box>
+            ) : (
+                list.map((item, idx) => (
+                    <Box key={idx} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.25 }}>
+                        <Box
+                            sx={{
+                                width: 34,
+                                height: 34,
+                                borderRadius: '50%',
+                                flexShrink: 0,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: item.accent.soft,
+                                color: item.accent.main,
+                            }}
+                        >
+                            {item.icon}
+                        </Box>
+                        <Box sx={{ minWidth: 0 }}>
+                            <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: theme.palette.mode === 'dark' ? '#fff' : '#0f172a' }}>
+                                {item.title}
+                            </Typography>
+                            <Typography noWrap sx={{ fontSize: '0.78rem', color: '#8b8ba7' }}>
+                                {item.subtitle}
+                            </Typography>
+                            <Typography sx={{ fontSize: '0.7rem', color: '#a0a0b8', mt: 0.15 }}>
+                                {item.meta}
+                            </Typography>
+                        </Box>
+                    </Box>
+                ))
+            )}
+        </Paper>
+    );
+};
+
+// ---------------------------------------------------------------------------
+// New Course promo — highlights the most recently added catalog course.
+// ---------------------------------------------------------------------------
+const NewCoursePromoCard = ({ course, onEnroll }) => {
+    if (!course) return null;
+    const title = course.title || course.name || 'New Course';
+
+    return (
+        <Paper
+            elevation={0}
+            sx={{
+                p: { xs: 2, sm: 2.25 },
+                borderRadius: '20px',
+                height: '100%',
+                background: 'linear-gradient(160deg, #0f1b30 0%, #16233F 60%, #1E3A6B 100%)',
+                color: '#fff',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                gap: 1.5,
+                position: 'relative',
+                overflow: 'hidden',
+            }}
+        >
+            <Box
+                sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 0.6,
+                    alignSelf: 'flex-start',
+                    px: 1.1,
+                    py: 0.35,
+                    borderRadius: '999px',
+                    background: 'rgba(255,255,255,0.12)',
+                    fontSize: '0.66rem',
+                    fontWeight: 800,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    color: 'rgba(255,255,255,0.85)',
+                }}
+            >
+                <RocketLaunchRoundedIcon sx={{ fontSize: 14 }} />
+                New Course
+            </Box>
+
+            <Typography
+                noWrap
+                sx={{
+                    fontSize: { xs: '1.15rem', sm: '1.3rem' },
+                    fontWeight: 800,
+                    lineHeight: 1.2,
+                    letterSpacing: '-0.01em',
+                }}
+            >
+                {title}
+            </Typography>
+
+            <Button
+                variant="contained"
+                onClick={() => onEnroll(course.id || course.course_id)}
+                sx={{
+                    alignSelf: 'flex-start',
+                    px: 2.4,
+                    py: 0.85,
+                    borderRadius: '999px',
+                    textTransform: 'none',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    color: '#12305F',
+                    backgroundColor: '#FFFFFF',
+                    boxShadow: 'none',
+                    '&:hover': { backgroundColor: '#EDF3FF' },
+                }}
+            >
+                Enroll Now
+            </Button>
         </Paper>
     );
 };
@@ -610,7 +770,6 @@ const CourseCatalogMarquee = ({ courses, isLoading, onCourseClick }) => {
 
 const Banner = ({ user, stats, inProgressCourses, allCourses, isLoadingCourses, onCourseClick }) => {
     const navigate = useNavigate();
-    const [isHovering, setIsHovering] = useState(false);
 
     const latestAddedCourse = useMemo(() => {
         if (!Array.isArray(allCourses) || allCourses.length === 0) {
@@ -646,42 +805,22 @@ const Banner = ({ user, stats, inProgressCourses, allCourses, isLoadingCourses, 
 
     const displayName = (user?.first_name || user?.username || 'Learner').trim();
     const totalEnrollments = Number(stats?.totalEnrollments) || 0;
-    const resumeProgress = Math.round(Number(resumeCourse?.progress_percent) || 0);
+    const courseAvg = Math.round(Number(stats?.averageScore) || 0);
+    const pendingCount = Number(stats?.inProgressCount) || 0;
+    const hasNewCourse = Boolean(latestAddedCourse?.id) && !resumeCourse;
+
+    const radius = 58;
+    const circumference = 2 * Math.PI * radius;
+    const clampedAvg = Math.max(0, Math.min(100, courseAvg));
+    const dash = (circumference * clampedAvg) / 100;
 
     const supportingText = totalEnrollments > 0
-        ? `Take the first step toward your career goals. Learn with focus, complete your lessons, practice your skills, and unlock new achievements.`
+        ? `Take the first step toward your career goals. You have ${pendingCount} course${pendingCount === 1 ? '' : 's'} in progress${hasNewCourse ? ' and 1 new course recommendation.' : '.'}`
         : 'Start your first course and build steady progress toward your next certificate.';
 
-    const statusButtonCopy = (() => {
-        if (isLoadingCourses) {
-            return {
-                label: 'Loading courses...',
-                icon: <MenuBookIcon sx={{ fontSize: 19, color: '#6DF6A5' }} />,
-                onClick: () => navigate('/catalog'),
-            };
-        }
-
-        if (resumeCourse) {
-            return {
-                label: resumeProgress > 0 ? `${resumeProgress}% Complete` : 'Day Streak',
-                icon: <LocalFireDepartmentIcon sx={{ fontSize: 19, color: '#6DF6A5' }} />,
-                onClick: () => onCourseClick(resumeCourse.id),
-            };
-        }
-
-        if (latestAddedCourse?.id) {
-            return {
-                label: `New: ${latestAddedCourse.title || 'Course'}`,
-                icon: <MenuBookIcon sx={{ fontSize: 18, color: '#6DF6A5' }} />,
-                onClick: () => onCourseClick(latestAddedCourse.id),
-            };
-        }
-
-        return {
-            label: `${totalEnrollments} Enrollments`,
-            icon: <SchoolIcon sx={{ fontSize: 18, color: '#6DF6A5' }} />,
-            onClick: () => navigate('/catalog'),
-        };
+    const streakLabel = (() => {
+        const days = Number(stats?.streakDays);
+        return Number.isFinite(days) && days > 0 ? `${days} Day Streak` : 'Day Streak';
     })();
 
     const handlePrimaryAction = () => {
@@ -689,7 +828,6 @@ const Banner = ({ user, stats, inProgressCourses, allCourses, isLoadingCourses, 
             onCourseClick(resumeCourse.id);
             return;
         }
-
         navigate('/catalog');
     };
 
@@ -697,80 +835,48 @@ const Banner = ({ user, stats, inProgressCourses, allCourses, isLoadingCourses, 
         <Box
             sx={{
                 width: '100%',
-                minHeight: { xs: 260, md: 285 },
-                mb: 5,
+                mb: 4,
                 position: 'relative',
                 overflow: 'hidden',
-                borderRadius: { xs: '28px', md: '36px' },
-                background: 'linear-gradient(135deg, #312F90 0%, #33319A 55%, #2B2A7C 100%)',
-                boxShadow: '0 28px 60px rgba(49, 47, 144, 0.26)',
-                px: { xs: 3, sm: 4, md: 6 },
+                borderRadius: '24px',
+                background: 'linear-gradient(135deg, #16233F 0%, #1E3A6B 55%, #1B4CA0 100%)',
+                boxShadow: '0 20px 44px rgba(15, 42, 96, 0.28)',
+                px: { xs: 3, sm: 4, md: 5 },
                 pt: { xs: 3.5, md: 4.5 },
-                pb: { xs: 8.5, md: 9 },
+                pb: { xs: 7, md: 7.5 },
                 display: 'flex',
                 alignItems: 'center',
-                transition: 'transform 0.28s ease, box-shadow 0.28s ease',
-                '&:hover': {
-                    transform: 'translateY(-2px)',
-                    boxShadow: '0 34px 70px rgba(49, 47, 144, 0.32)',
-                },
+                flexDirection: { xs: 'column', md: 'row' },
+                gap: { xs: 3, md: 4 },
             }}
-            onMouseEnter={() => setIsHovering(true)}
-            onMouseLeave={() => setIsHovering(false)}
         >
-            <Box
-                sx={{
-                    position: 'absolute',
-                    inset: 0,
-                    background: 'linear-gradient(90deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0) 45%)',
-                    pointerEvents: 'none',
-                }}
-            />
+            <Box sx={{ flex: 1, position: 'relative', zIndex: 1, width: '100%' }}>
+                <Box
+                    sx={{
+                        display: 'inline-block',
+                        px: 1.4,
+                        py: 0.4,
+                        mb: 1.5,
+                        borderRadius: '999px',
+                        background: 'rgba(255,255,255,0.12)',
+                        color: 'rgba(255,255,255,0.85)',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        letterSpacing: '0.06em',
+                        textTransform: 'uppercase',
+                    }}
+                >
+                    Academic Year {new Date().getFullYear()}
+                </Box>
 
-            <Box
-                sx={{
-                    position: 'absolute',
-                    right: { xs: -52, sm: -24, md: 58 },
-                    top: { xs: -24, md: 8 },
-                    width: { xs: 180, sm: 210, md: 250 },
-                    height: { xs: 180, sm: 210, md: 250 },
-                    borderRadius: '46% 54% 56% 44% / 40% 42% 58% 60%',
-                    background: 'radial-gradient(circle at 35% 35%, rgba(67, 95, 208, 0.92) 0%, rgba(61, 88, 198, 0.72) 55%, rgba(56, 81, 182, 0.26) 100%)',
-                    opacity: 0.62,
-                    transform: isHovering ? 'translateY(6px) scale(1.03)' : 'translateY(0) scale(1)',
-                    transition: 'transform 0.35s ease',
-                }}
-            />
-
-            <Box
-                sx={{
-                    position: 'absolute',
-                    right: { xs: 6, sm: 26, md: 96 },
-                    top: { xs: 18, md: 22 },
-                    width: { xs: 120, sm: 142, md: 170 },
-                    height: { xs: 120, sm: 142, md: 170 },
-                    borderRadius: '50%',
-                    border: '1px solid rgba(255, 255, 255, 0.06)',
-                    background: 'rgba(59, 86, 197, 0.18)',
-                    filter: 'blur(0.5px)',
-                }}
-            />
-
-            <Box
-                sx={{
-                    position: 'relative',
-                    zIndex: 1,
-                    maxWidth: { xs: '100%', md: '62%' },
-                }}
-            >
                 <Typography
                     sx={{
                         color: '#FFFFFF',
-                        fontSize: { xs: '2rem', sm: '2.5rem', md: '3.15rem' },
+                        fontSize: { xs: '2rem', sm: '2.4rem', md: '2.7rem' },
                         fontWeight: 800,
-                        lineHeight: 1.08,
-                        letterSpacing: '-0.04em',
-                        mb: 1,
+                        lineHeight: 1.1,
+                        letterSpacing: '-0.03em',
+                        mb: 1.25,
                     }}
                 >
                     Welcome back, {displayName}!
@@ -778,84 +884,80 @@ const Banner = ({ user, stats, inProgressCourses, allCourses, isLoadingCourses, 
 
                 <Typography
                     sx={{
-                        color: 'rgba(244, 246, 255, 0.9)',
-                        fontSize: { xs: '0.96rem', sm: '1.05rem', md: '1.18rem' },
+                        color: 'rgba(226, 232, 245, 0.85)',
+                        fontSize: { xs: '0.92rem', sm: '1rem' },
                         lineHeight: 1.55,
-                        maxWidth: { xs: '100%', md: 680 },
+                        maxWidth: 520,
                         mb: 3,
                     }}
                 >
                     {supportingText}
                 </Typography>
 
-                <Box
-                    sx={{
-                        display: 'flex',
-                        alignItems: { xs: 'stretch', sm: 'center' },
-                        flexDirection: { xs: 'column', sm: 'row' },
-                        gap: 1.5,
-                    }}
-                >
+                <Box sx={{ display: 'flex', alignItems: { xs: 'stretch', sm: 'center' }, flexDirection: { xs: 'column', sm: 'row' }, gap: 1.5 }}>
                     <Button
                         variant="contained"
                         onClick={handlePrimaryAction}
                         sx={{
-                            alignSelf: 'flex-start',
-                            minWidth: { xs: '100%', sm: 'auto' },
-                            px: 3.5,
-                            py: 1.35,
+                            px: 3.2,
+                            py: 1.15,
                             borderRadius: '999px',
                             textTransform: 'none',
-                            fontSize: { xs: '0.98rem', md: '1.08rem' },
+                            fontSize: '0.95rem',
                             fontWeight: 700,
-                            color: '#0A5CC5',
+                            color: '#12305F',
                             backgroundColor: '#FFFFFF',
-                            boxShadow: '0 16px 30px rgba(8, 19, 74, 0.24)',
-                            '&:hover': {
-                                backgroundColor: '#F4F7FF',
-                                boxShadow: '0 18px 32px rgba(8, 19, 74, 0.28)',
-                            },
+                            boxShadow: 'none',
+                            '&:hover': { backgroundColor: '#EDF3FF' },
                         }}
                     >
-                        {resumeCourse ? 'Resume Learning' : 'Start Learning'}
+                        {resumeCourse ? 'Continue Learning' : 'Start Learning'}
                     </Button>
 
                     <Button
                         variant="outlined"
-                        onClick={statusButtonCopy.onClick}
+                        startIcon={<LocalFireDepartmentIcon sx={{ fontSize: 18 }} />}
                         sx={{
-                            alignSelf: 'flex-start',
-                            maxWidth: { xs: '100%', sm: 260, md: 300 },
                             px: 2.4,
-                            py: 1.15,
+                            py: 1.1,
                             borderRadius: '999px',
                             textTransform: 'none',
-                            borderColor: 'rgba(255, 255, 255, 0.18)',
-                            backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                            backdropFilter: 'blur(10px)',
-                            color: '#F7F8FF',
-                            '&:hover': {
-                                borderColor: 'rgba(255, 255, 255, 0.24)',
-                                backgroundColor: 'rgba(255, 255, 255, 0.12)',
-                            },
+                            fontSize: '0.9rem',
+                            fontWeight: 700,
+                            borderColor: 'rgba(255,255,255,0.28)',
+                            color: '#FFFFFF',
+                            '&:hover': { borderColor: 'rgba(255,255,255,0.5)', backgroundColor: 'rgba(255,255,255,0.06)' },
                         }}
-                        startIcon={statusButtonCopy.icon}
                     >
-                        <Typography
-                            component="span"
-                            sx={{
-                                display: 'block',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                                fontSize: { xs: '0.92rem', md: '1rem' },
-                                fontWeight: 700,
-                                maxWidth: { xs: 220, sm: 190, md: 220 },
-                            }}
-                        >
-                            {statusButtonCopy.label}
-                        </Typography>
+                        {streakLabel}
                     </Button>
+                </Box>
+            </Box>
+
+            <Box sx={{ position: 'relative', width: { xs: 180, md: 210 }, height: { xs: 180, md: 210 }, flexShrink: 0 }}>
+                <svg viewBox="0 0 180 180" width="100%" height="100%">
+                    <circle cx="90" cy="90" r={radius} fill="none" stroke="rgba(255,255,255,0.14)" strokeWidth="14" />
+                    {clampedAvg > 0 && (
+                        <circle
+                            cx="90"
+                            cy="90"
+                            r={radius}
+                            fill="none"
+                            stroke="#ffffff"
+                            strokeWidth="14"
+                            strokeLinecap="round"
+                            strokeDasharray={`${dash} ${circumference - dash}`}
+                            transform="rotate(-90 90 90)"
+                        />
+                    )}
+                </svg>
+                <Box sx={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                    <Typography sx={{ color: '#fff', fontSize: { xs: '1.7rem', md: '2rem' }, fontWeight: 800, lineHeight: 1 }}>
+                        {clampedAvg}%
+                    </Typography>
+                    <Typography sx={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.78rem', mt: 0.4 }}>
+                        Course Avg.
+                    </Typography>
                 </Box>
             </Box>
 
@@ -1027,6 +1129,7 @@ const StudentDashboard = () => {
                     category_names: categoryNames,
                     category_name: categoryNames[0] || 'General',
                     enrolled_on: enrollment.enrolled_on,
+                    completed_on: enrollment.completed_on,
                     credit_points: creditPointsByCourseId.get(courseId) ?? 0,
                 };
             })
@@ -1291,61 +1394,95 @@ const StudentDashboard = () => {
         : 0;
     const summaryCards = [
         {
-            title: 'In Progress',
+            title: 'Courses in Progress',
             value: formatStatNumber(effectiveInProgressCount),
-            icon: <PendingActionsRoundedIcon sx={{ fontSize: 28, color: 'inherit' }} />,
+            icon: <PendingActionsRoundedIcon />,
+            badge: effectiveRecentEnrollmentCount > 0 ? `+${effectiveRecentEnrollmentCount} this week` : null,
             accent: {
                 main: '#0F6CBD',
-                soft: 'rgba(15, 108, 189, 0.12)',
-                border: 'rgba(15, 108, 189, 0.18)',
-                glow: 'rgba(15, 108, 189, 0.18)',
+                soft: 'rgba(15, 108, 189, 0.10)',
             },
         },
         {
-            title: 'Completed',
+            title: 'Completed Courses',
             value: formatStatNumber(effectiveCompletedCount),
-            icon: <TaskAltRoundedIcon sx={{ fontSize: 28, color: 'inherit' }} />,
+            icon: <TaskAltRoundedIcon />,
+            badge: `${completionPercentage}% Completion`,
             accent: {
                 main: '#0F7A3A',
-                soft: 'rgba(15, 122, 58, 0.12)',
-                border: 'rgba(15, 122, 58, 0.16)',
-                glow: 'rgba(15, 122, 58, 0.16)',
+                soft: 'rgba(15, 122, 58, 0.10)',
             },
         },
         {
-            title: 'Average Score',
-            value: `${Math.round(dashboardData?.stats?.averageScore || 0)}%`,
-            icon: <TrendingUpRoundedIcon sx={{ fontSize: 28, color: 'inherit' }} />,
+            title: 'Total Credit Points',
+            value: formatStatNumber(creditPointsData?.total_credit_points || 0),
+            icon: <StarIcon />,
+            badge: null,
             accent: {
                 main: '#9A6B00',
-                soft: 'rgba(154, 107, 0, 0.12)',
-                border: 'rgba(154, 107, 0, 0.16)',
-                glow: 'rgba(154, 107, 0, 0.16)',
+                soft: 'rgba(154, 107, 0, 0.10)',
             },
         },
         {
-            title: 'Enrolled Count',
-            value: formatStatNumber(effectiveTotalEnrollments),
-            icon: <GroupsRoundedIcon sx={{ fontSize: 28, color: 'inherit' }} />,
+            title: 'Average Grade',
+            value: `${Math.round(dashboardData?.stats?.averageScore || 0)}%`,
+            icon: <TrendingUpRoundedIcon />,
+            badge: null,
             accent: {
                 main: '#1E67C6',
-                soft: 'rgba(30, 103, 198, 0.12)',
-                border: 'rgba(30, 103, 198, 0.16)',
-                glow: 'rgba(30, 103, 198, 0.16)',
+                soft: 'rgba(30, 103, 198, 0.10)',
             },
         },
         {
             title: 'Recently Enrolled',
             value: formatStatNumber(effectiveRecentEnrollmentCount),
-            icon: <PersonAddAlt1RoundedIcon sx={{ fontSize: 28, color: 'inherit' }} />,
+            icon: <PersonAddAlt1RoundedIcon />,
+            badge: null,
             accent: {
                 main: '#1E67C6',
-                soft: 'rgba(30, 103, 198, 0.1)',
-                border: 'rgba(30, 103, 198, 0.16)',
-                glow: 'rgba(30, 103, 198, 0.14)',
+                soft: 'rgba(30, 103, 198, 0.10)',
             },
         },
     ];
+
+    // --- Notifications: most recent completed course + newest catalog course ---
+    const latestCompletedCourse = [...effectiveInProgressCourses]
+        .filter((c) => c.progress_state === 'COMPLETED')
+        .sort((a, b) => new Date(b.completed_on || 0) - new Date(a.completed_on || 0))[0];
+
+    const newestCatalogCourse = allCourses.length
+        ? [...allCourses].sort((a, b) => {
+            const at = new Date(a.created_at ?? a.createdAt ?? 0).getTime();
+            const bt = new Date(b.created_at ?? b.createdAt ?? 0).getTime();
+            return bt - at;
+        })[0]
+        : null;
+
+    const isAlreadyEnrolledInNewest = newestCatalogCourse
+        ? effectiveInProgressCourses.some((c) => String(c.id) === String(newestCatalogCourse.id))
+        : false;
+
+    const notificationItems = [];
+    if (latestCompletedCourse) {
+        notificationItems.push({
+            icon: <EmojiEventsIcon sx={{ fontSize: 18 }} />,
+            title: 'Course Completed',
+            subtitle: latestCompletedCourse.title || latestCompletedCourse.name,
+            meta: latestCompletedCourse.completed_on
+                ? new Date(latestCompletedCourse.completed_on).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                : '',
+            accent: { main: '#0F7A3A', soft: 'rgba(15, 122, 58, 0.10)' },
+        });
+    }
+    if (newestCatalogCourse && !isAlreadyEnrolledInNewest) {
+        notificationItems.push({
+            icon: <NotificationsActiveIcon sx={{ fontSize: 18 }} />,
+            title: 'New Course Available',
+            subtitle: newestCatalogCourse.title || newestCatalogCourse.name,
+            meta: 'Recommended for you',
+            accent: { main: '#1E67C6', soft: 'rgba(30, 103, 198, 0.10)' },
+        });
+    }
 
     return (
         <Box sx={{
@@ -1353,19 +1490,10 @@ const StudentDashboard = () => {
             py: 2,
             background: (theme) => theme.palette.mode === 'dark'
                 ? 'linear-gradient(135deg, #0a1929 0%, #132f4c 50%, #1e3a5f 100%)'
-                : 'linear-gradient(135deg, #e3f2fd 0%, #b2c5d4ff 50%, #cfe7faff 100%)',
+                : '#F4F8FC',
             minHeight: '100vh',
             width: '100%',
             overflowX: 'clip',
-            cursor: 'default',
-            userSelect: 'none',
-            '& *': {
-                cursor: 'default',
-                userSelect: 'none',
-            },
-            '& button, & a, & [role="button"], & .MuiButtonBase-root, & .MuiIconButton-root, & .MuiChip-root': {
-                cursor: 'pointer',
-            }
         }}>
             <Container maxWidth={false} sx={{ px: { xs: 0, sm: 1, md: 2 } }}>
             {/* Banner Section */}
@@ -1401,8 +1529,31 @@ const StudentDashboard = () => {
                             value={card.value}
                             icon={card.icon}
                             accent={card.accent}
+                            badge={card.badge}
                         />
                     ))}
+                </Box>
+            </Box>
+
+            {/* Notifications + New Course Promo Section */}
+            <Box sx={{ width: '100%', mb: 4 }}>
+                <Box
+                    sx={{
+                        maxWidth: 1320,
+                        mx: 'auto',
+                        display: 'grid',
+                        gap: { xs: 1.5, sm: 2 },
+                        gridTemplateColumns: {
+                            xs: '1fr',
+                            md: newestCatalogCourse && !isAlreadyEnrolledInNewest ? '1fr 1fr' : '1fr',
+                        },
+                        alignItems: 'stretch',
+                    }}
+                >
+                    <NotificationsCard items={notificationItems} />
+                    {newestCatalogCourse && !isAlreadyEnrolledInNewest && (
+                        <NewCoursePromoCard course={newestCatalogCourse} onEnroll={handleCourseClick} />
+                    )}
                 </Box>
             </Box>
 
@@ -1421,7 +1572,7 @@ const StudentDashboard = () => {
                     }}
                 >
                     <AttendanceCard attendance={attendancePercentage || 90} />
-                    <PercentageCard percentage={completionPercentage || 80} />
+                    <LearningTrendsCard activityLog={dashboardData?.recentActivity} />
                 </Box>
             </Box>
 
@@ -1492,7 +1643,7 @@ const StudentDashboard = () => {
                                             fontSize: { xs: '1.05rem', md: '1.2rem' },
                                         }}
                                     >
-                                        Enrolled Course Progress
+                                        In Progress Courses
                                     </Typography>
                                     <Typography
                                         component="span"
@@ -1866,9 +2017,9 @@ const StudentDashboard = () => {
             </Box>
 
             {/* Latest Course Feedback from all students */}
-            <Box sx={{ display: 'flex', ml:16, width: '100%', mt: 4 }}>
+            <Box sx={{ display: 'flex', width: '100%', mt: 4 }}>
            
-                <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ maxWidth: { xs: '100%', sm: '100%', md: 1200, lg: 1400 } }}>
+                <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ maxWidth: { xs: '100%', sm: '100%', md: 1200, lg: 1400 }, mx: 'auto' }}>
                     <Grid size={{ xs: 12 }}>
                         <Box
                             sx={{
@@ -2109,4 +2260,3 @@ const StudentDashboard = () => {
 };
 
 export default StudentDashboard;
-
