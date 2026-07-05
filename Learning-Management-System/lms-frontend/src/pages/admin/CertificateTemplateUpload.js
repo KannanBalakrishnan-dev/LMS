@@ -5,7 +5,6 @@ import {
   Button,
   Chip,
   CircularProgress,
-  Grid,
   IconButton,
   InputAdornment,
   Paper,
@@ -23,10 +22,12 @@ import {
   Typography,
 } from '@mui/material';
 import {
+  Add as AddIcon,
   CheckCircle as CheckCircleIcon,
   CloudUpload as CloudUploadIcon,
   Description as DescriptionIcon,
   MailOutline as MailOutlineIcon,
+  Public as PublicIcon,
   Search as SearchIcon,
   Shield as ShieldIcon,
   Upload as UploadIcon,
@@ -438,13 +439,13 @@ const AllCoursesTemplateTab = () => {
   const infoCards = [
     {
       icon: <ShieldIcon sx={{ color: ACCENT }} fontSize="small" />,
-      title: 'Secure verification',
-      body: 'Every certificate includes a unique ID and a verification link learners can share.',
+      title: 'Secure Verification',
+      body: 'Every certificate includes a unique ID and blockchain-backed verification link.',
     },
     {
       icon: <MailOutlineIcon sx={{ color: ACCENT }} fontSize="small" />,
-      title: 'Auto-delivery',
-      body: 'Certificates are generated and emailed automatically once a learner passes the final exam.',
+      title: 'Auto-Delivery',
+      body: 'Certificates are automatically generated and emailed upon final exam passing.',
     },
   ];
 
@@ -470,22 +471,36 @@ const AllCoursesTemplateTab = () => {
       <Box
         sx={{
           bgcolor: '#eef1f6',
-          borderRadius: 4,
-          p: { xs: 2, sm: 3 },
+          borderRadius: 5,
+          p: { xs: 2, sm: 3, md: 4 },
         }}
       >
-      <Grid container spacing={3}>
+      <Box
+        sx={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 3,
+          alignItems: 'stretch',
+        }}
+      >
         {/* Left: upload zone + feature cards */}
-        <Grid item xs={12} md={7}>
+        <Box
+          sx={{
+            flex: '1 1 520px',
+            minWidth: 0,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
           <Paper
             variant="outlined"
             sx={{
-              p: 4,
+              p: { xs: 3, sm: 5 },
               borderRadius: 4,
               textAlign: 'center',
               borderStyle: 'dashed',
               borderWidth: 2,
-              borderColor: selectedFile ? ACCENT : BORDER,
+              borderColor: selectedFile ? ACCENT : '#cbd5e1',
               background: '#ffffff',
               transition: 'border-color 0.2s ease',
             }}
@@ -516,7 +531,7 @@ const AllCoursesTemplateTab = () => {
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 3, maxWidth: 420, mx: 'auto' }}>
                   {selectedFile
                     ? 'Ready to upload. This will apply to every course without its own custom template.'
-                    : 'Upload a Word (.docx) file with the required placeholders to use as the base for every course certificate.'}
+                    : 'Upload a high-resolution PDF or SVG file to use as the base for all your course certificates.'}
                 </Typography>
 
                 <Box sx={{ display: 'flex', gap: 1.5, justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -537,7 +552,7 @@ const AllCoursesTemplateTab = () => {
                       '&:hover': { borderColor: ACCENT_DARK, bgcolor: ACCENT_SOFT },
                     }}
                   >
-                    Choose template
+                    Choose Template
                   </Button>
 
                   {selectedFile && (
@@ -561,38 +576,44 @@ const AllCoursesTemplateTab = () => {
             )}
           </Paper>
 
-          <Grid container spacing={2} sx={{ mt: 0.5 }}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 0.5, flex: 1 }}>
             {infoCards.map((card) => (
-              <Grid item xs={12} sm={6} key={card.title}>
-                <Paper
-                  variant="outlined"
-                  sx={{ p: 2, borderRadius: 3, borderColor: BORDER, background: '#ffffff', height: '100%' }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.75 }}>
-                    {card.icon}
-                    <Typography variant="subtitle2" fontWeight={700}>
-                      {card.title}
-                    </Typography>
-                  </Box>
-                  <Typography variant="body2" color="text.secondary">
-                    {card.body}
+              <Paper
+                key={card.title}
+                variant="outlined"
+                sx={{
+                  flex: '1 1 240px',
+                  minWidth: 0,
+                  p: 2.5,
+                  borderRadius: 3,
+                  borderColor: '#e2e8f0',
+                  background: '#ffffff',
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.75 }}>
+                  {card.icon}
+                  <Typography variant="subtitle2" fontWeight={700}>
+                    {card.title}
                   </Typography>
-                </Paper>
-              </Grid>
+                </Box>
+                <Typography variant="body2" color="text.secondary">
+                  {card.body}
+                </Typography>
+              </Paper>
             ))}
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
 
         {/* Right: persistent status panel — always visible, content adapts to state */}
-        <Grid item xs={12} md={5}>
+        <Box sx={{ flex: '1 1 360px', minWidth: 0, display: 'flex' }}>
           <Paper
             variant="outlined"
             sx={{
-              p: 3,
+              p: { xs: 3, sm: 4 },
               borderRadius: 4,
-              borderColor: BORDER,
+              borderColor: '#e2e8f0',
               background: '#ffffff',
-              height: '100%',
+              width: '100%',
               display: 'flex',
               flexDirection: 'column',
             }}
@@ -603,7 +624,13 @@ const AllCoursesTemplateTab = () => {
               <>
                 <Chip
                   size="small"
-                  icon={<CheckCircleIcon sx={{ fontSize: '16px !important', color: `${ACCENT} !important` }} />}
+                  icon={
+                    hasTemplate ? (
+                      <CheckCircleIcon sx={{ fontSize: '16px !important', color: `${ACCENT} !important` }} />
+                    ) : (
+                      <PublicIcon sx={{ fontSize: '16px !important', color: `${ACCENT} !important` }} />
+                    )
+                  }
                   label={hasTemplate ? 'CUSTOM TEMPLATE' : 'GLOBAL SYSTEM DEFAULT'}
                   sx={{
                     alignSelf: 'flex-start',
@@ -622,18 +649,18 @@ const AllCoursesTemplateTab = () => {
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 3 }}>
                   {hasTemplate
                     ? 'This is the template you uploaded. It\'s applied automatically to every course unless that course has its own design on the "Individual Courses" tab.'
-                    : 'No custom design has been uploaded yet, so every course uses this baseline layout. Upload your own template on the left to replace it for all courses.'}
+                    : 'This template is automatically applied to all courses unless a course-specific design is explicitly uploaded. It ensures a professional, consistent brand experience across your entire LMS.'}
                 </Typography>
 
-                <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing: 0.5, color: '#64748b' }}>
+                <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing: 0.8, color: '#64748b' }}>
                   ACTIVE ELEMENTS
                 </Typography>
-                <Box sx={{ mt: 1, mb: 3 }}>
+                <Box sx={{ mt: 1.5, mb: 3, flex: 1 }}>
                   {[
-                    'Dynamic student name',
-                    'Course title & completion date',
-                    'Verification ID & QR code',
-                    'Digital signature placeholder',
+                    'Dynamic Student Name',
+                    'Course Title & Completion Date',
+                    'Verification ID & QR Code',
+                    'Digital Signature Placeholder',
                   ].map((item) => (
                     <Box key={item} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5 }}>
                       <CheckCircleIcon sx={{ fontSize: 18, color: ACCENT }} />
@@ -643,20 +670,15 @@ const AllCoursesTemplateTab = () => {
                 </Box>
 
                 <Box sx={{ mt: 'auto', display: 'flex', gap: 1.5 }}>
-                  <Tooltip title={hasTemplate ? '' : 'No custom file to view yet — this is the built-in layout'}>
-                    <span style={{ flex: 1 }}>
-                      <Button
-                        fullWidth
-                        variant="outlined"
-                        onClick={handleView}
-                        disabled={viewing || !hasTemplate}
-                        startIcon={viewing ? <CircularProgress size={16} /> : <VisibilityIcon />}
-                        sx={{ borderColor: BORDER, color: '#0f172a', fontWeight: 600 }}
-                      >
-                        View Template
-                      </Button>
-                    </span>
-                  </Tooltip>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    onClick={handleView}
+                    disabled={viewing || !hasTemplate}
+                    sx={{ borderColor: BORDER, color: '#0f172a', fontWeight: 600 }}
+                  >
+                    {viewing ? <CircularProgress size={16} /> : 'View History'}
+                  </Button>
                   <Tooltip title="Placeholder positions and styling — coming soon">
                     <span style={{ flex: 1 }}>
                       <Button
@@ -677,8 +699,8 @@ const AllCoursesTemplateTab = () => {
               </>
             )}
           </Paper>
-        </Grid>
-      </Grid>
+        </Box>
+      </Box>
       </Box>
     </Box>
   );
@@ -689,18 +711,40 @@ const CertificateTemplateUpload = () => {
 
   return (
     <Box p={3}>
-      <Typography variant="h5" fontWeight={700}>
-        Certificate templates
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Design and manage the certificate learners receive when they complete a course.
-      </Typography>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 2,
+          mb: 1,
+        }}
+      >
+        <Box>
+          <Typography variant="h5" fontWeight={700}>
+            Certificate Templates
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Design and manage credential designs for your automated certification workflows.
+          </Typography>
+        </Box>
+
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          sx={{ bgcolor: ACCENT, fontWeight: 700, '&:hover': { bgcolor: ACCENT_DARK } }}
+        >
+          Create New
+        </Button>
+      </Box>
 
       <Tabs
         value={tab}
         onChange={(_, value) => setTab(value)}
         sx={{
           mb: 3,
+          mt: 2,
           borderBottom: 1,
           borderColor: 'divider',
           '& .MuiTab-root': { fontWeight: 600, textTransform: 'none' },

@@ -18,7 +18,6 @@ import {
   CssBaseline,
   Badge,
   Tooltip,
-  InputBase,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -35,10 +34,9 @@ import {
   WorkspacePremium,
   KeyboardArrowDown,
   AutoStories,
-  Search as SearchIcon,
   DarkMode as DarkModeIcon,
   LightMode as LightModeIcon,
-  HelpOutline as HelpOutlineIcon,
+  // HelpOutline as HelpOutlineIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '@mui/material/styles';
@@ -91,7 +89,6 @@ const AdminLayout = () => {
   const [notificationAnchorEl, setNotificationAnchorEl] = useState(null);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const lastNotificationAtRef = useRef(null);
   const liveNotificationFailureCountRef = useRef(0);
   const liveNotificationsPausedRef = useRef(false);
@@ -104,13 +101,6 @@ const AdminLayout = () => {
   const handleDrawerToggle = () => setDrawerOpen((prev) => !prev);
   const handleLogout = () => { logout(); navigate('/login'); };
   const handleToggleDarkMode = () => setDarkMode((prev) => !prev);
-
-  const handleSearchSubmit = (event) => {
-    event.preventDefault();
-    const query = searchQuery.trim();
-    if (!query) return;
-    navigate(`/admin/users?search=${encodeURIComponent(query)}`);
-  };
 
   const fetchNotifications = async () => {
     try {
@@ -236,7 +226,7 @@ const AdminLayout = () => {
               { text: 'Approved List', icon: <History />, path: '/admin/deleted-actions' },
             ]
           : []),
-        { text: 'Help Center', icon: <HelpOutlineIcon />, path: '/admin/help' },
+        // { text: 'Help Center', icon: <HelpOutlineIcon />, path: '/admin/help' },
       ],
     },
   ];
@@ -329,41 +319,11 @@ const AdminLayout = () => {
                 fontWeight: 700,
                 color: '#111827',
                 letterSpacing: -0.2,
-                // textDecoration: 'underline',
-                // textDecorationColor: 'rgba(17, 24, 39, 0.25)',
-                // textUnderlineOffset: 4,
               }}
             >
               EduPlatform
             </Typography>
           </Box>
-
-          {/* Search */}
-          {/* <Box
-            component="form"
-            onSubmit={handleSearchSubmit}
-            sx={{
-              flexGrow: 1,
-              maxWidth: 420,
-              display: { xs: 'none', sm: 'flex' },
-              alignItems: 'center',
-              gap: 1,
-              px: 1.5,
-              py: 0.6,
-              borderRadius: '10px',
-              backgroundColor: '#f3f4f6',
-              border: '1px solid #e5e7eb',
-              
-            }}
-          >
-            <SearchIcon sx={{ fontSize: 19, color: '#9ca3af' }} />
-            <InputBase
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search students, courses, or reports"
-              sx={{ fontSize: '0.85rem', flex: 1, color: '#374151' }}
-            />
-          </Box> */}
 
           <Box sx={{ flexGrow: 1 }} />
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -430,7 +390,7 @@ const AdminLayout = () => {
             overflowX: 'hidden',
             boxSizing: 'border-box',
             //-----slidebar background colour-----
-            background: '#fff9fa',  
+            background: '#fff9fa',
             color: NAV_TEXT,
             transition: 'width 0.25s ease',
             border: 'none',

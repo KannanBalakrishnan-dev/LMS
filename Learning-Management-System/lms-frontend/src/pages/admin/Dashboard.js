@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Grid,
@@ -13,6 +13,7 @@ import {
   Avatar,
   Chip,
   Button,
+  Alert,
 } from '@mui/material';
 import {
   Person,
@@ -22,19 +23,13 @@ import {
   AccessTime,
   CheckCircle,
   ArrowForward,
-  UndoRounded,
 } from '@mui/icons-material';
 import api from '../../api';
 
 // ---------------------------------------------------------------------------
-// DEMO MODE — flip this to `true` to prove the % calculation is real and not
-// a fixed number. It bypasses the API and feeds in sample prev-month/this-month
-// numbers so you can see computeChange() produce different results for each card:
-//   Total Users:        8  -> 12   =>  +50.0%  (increase)
-//   Active Courses:      5 ->  4   =>  -20.0%  (decrease)
-//   Total Teams:          3 ->  3  =>    0.0%  (no change)
-//   Total Enrollments:  20 -> 34   =>  +70.0%  (increase)
-// Set back to `false` for production — real data comes from the API as normal.
+// DEMO MODE — flip this to `true` locally to prove the % calculation is real.
+// Keep `false` in any shipped build; consider gating with an env var instead
+// of a hardcoded flag before this reaches production.
 // ---------------------------------------------------------------------------
 const DEMO_MODE = false;
 
@@ -56,19 +51,15 @@ const DEMO_STATS = {
   recentCompletions: [],
 };
 
-// ---- motion-wrapped MUI primitives (Framer Motion needs a DOM-writable component) ----
+// ---- motion-wrapped MUI primitives ----
 const MotionCard = motion(Card);
 const MotionPaper = motion(Paper);
 const MotionBox = motion(Box);
 
-// ---- animation variants, defined once and reused everywhere ----
-// Parent sets initial="hidden" animate="visible"; children just declare the
-// same variant names and Framer Motion staggers them automatically.
+// ---- animation variants ----
 const containerStagger = {
   hidden: {},
-  visible: {
-    transition: { staggerChildren: 0.08, delayChildren: 0.05 },
-  },
+  visible: { transition: { staggerChildren: 0.08, delayChildren: 0.05 } },
 };
 
 const cardEnter = {
@@ -76,7 +67,7 @@ const cardEnter = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] }, // easeOutExpo-ish, feels "smooth"
+    transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] },
   },
 };
 
@@ -86,7 +77,7 @@ const listItemEnter = {
   exit: { opacity: 0, x: 12, transition: { duration: 0.2 } },
 };
 
-// ---- tiny inline sparkline (no chart library dependency) ----
+// ---- tiny inline sparkline ----
 const Sparkline = ({ points = [], color = '#16a34a' }) => {
   if (!points.length) return null;
   const w = 70;
@@ -105,30 +96,29 @@ const Sparkline = ({ points = [], color = '#16a34a' }) => {
   );
 };
 
-// ---- Real percentage-change calculation: previous month vs this month ----
-// prevMonthValue: total as of the end of last month (0 if no data exists for it)
+// ---- Percentage-change calculation: previous month vs this month ----
+// prevMonthValue: total as of end of last month (0 if no data)
 // thisMonthValue: current running total for this month
-// Returns null only when thisMonthValue itself is missing entirely.
+// Returns null only when thisMonthValue is missing entirely.
+// FIX: a 0 -> 0 change is now flagged neutral (isPositive: null) instead of
+// being colored as a "positive" trend, since nothing actually increased.
 const computeChange = (prevMonthValue, thisMonthValue) => {
   if (thisMonthValue === undefined || thisMonthValue === null) return null;
 
   const prev = prevMonthValue ?? 0;
   const current = thisMonthValue;
 
-  // No previous month on record: everything this month is "growth from zero".
-  // current = 0  -> 0%   (nothing happened, nothing to report)
-  // current > 0  -> 100% (went from having none to having some — a full increase)
   if (prev === 0) {
-    if (current === 0) return { pct: 0, label: '0.0%', isPositive: true };
+    if (current === 0) return { pct: 0, label: '0.0%', isPositive: null };
     return { pct: 100, label: '+100.0%', isPositive: true };
   }
 
   const pct = ((current - prev) / prev) * 100;
-  const sign = pct > 0 ? '+' : ''; // negative numbers already carry their own "-" from toFixed
+  const sign = pct > 0 ? '+' : '';
   return {
     pct,
     label: `${sign}${pct.toFixed(1)}%`,
-    isPositive: pct >= 0,
+    isPositive: pct > 0 ? true : pct < 0 ? false : null,
   };
 };
 
@@ -167,31 +157,34 @@ const STAT_CARD_META = {
   },
 };
 
-// Negative-trend palette shared across all cards — a metric going down should always read as a warning,
-// regardless of the card's brand color.
 const NEGATIVE_TREND_COLOR = '#dc2626';
 const NEGATIVE_TREND_BG = '#fdecea';
+const NEUTRAL_TREND_COLOR = '#6b7280';
+const NEUTRAL_TREND_BG = '#f3f4f6';
 
 const StatCard = ({ statKey, value, prevMonthValue, thisMonthValue }) => {
   const meta = STAT_CARD_META[statKey];
 
-  // Fallback: if the backend hasn't started sending explicit *PrevMonth / *ThisMonth
-  // fields yet, treat the card's current total as "this month" and assume 0 for last
-  // month, so we still get a real, calculated percentage instead of "N/A".
-  // Once the backend sends real prevMonthValue/thisMonthValue, those take over automatically.
   const effectiveThisMonth = thisMonthValue ?? value ?? 0;
   const effectivePrevMonth = prevMonthValue ?? 0;
 
   const change = computeChange(effectivePrevMonth, effectiveThisMonth);
 
-  const trendColor = change
-    ? (change.isPositive ? meta.positiveTrendColor : NEGATIVE_TREND_COLOR)
-    : meta.positiveTrendColor;
-  const trendBg = change
-    ? (change.isPositive ? meta.positiveTrendBg : NEGATIVE_TREND_BG)
-    : meta.positiveTrendBg;
+  let trendColor = meta.positiveTrendColor;
+  let trendBg = meta.positiveTrendBg;
+  if (change) {
+    if (change.isPositive === true) {
+      trendColor = meta.positiveTrendColor;
+      trendBg = meta.positiveTrendBg;
+    } else if (change.isPositive === false) {
+      trendColor = NEGATIVE_TREND_COLOR;
+      trendBg = NEGATIVE_TREND_BG;
+    } else {
+      trendColor = NEUTRAL_TREND_COLOR;
+      trendBg = NEUTRAL_TREND_BG;
+    }
+  }
 
-  // Two-point sparkline: last month -> this month, e.g. [0, 1] or [6, 8].
   const sparklinePoints = [effectivePrevMonth, effectiveThisMonth];
 
   return (
@@ -200,12 +193,7 @@ const StatCard = ({ statKey, value, prevMonthValue, thisMonthValue }) => {
       variants={cardEnter}
       whileHover={{ y: -4, boxShadow: '0 12px 24px -8px rgba(0,0,0,0.15)' }}
       whileTap={{ scale: 0.98 }}
-      sx={{
-        height: '100%',
-        border: '1px solid',
-        borderColor: 'divider',
-        borderRadius: '16px',
-      }}
+      sx={{ height: '100%', border: '1px solid', borderColor: 'divider', borderRadius: '16px' }}
     >
       <CardContent sx={{ p: 2.5 }}>
         <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 2 }}>
@@ -228,13 +216,7 @@ const StatCard = ({ statKey, value, prevMonthValue, thisMonthValue }) => {
             <Chip
               label={change ? change.label : '0.0%'}
               size="small"
-              sx={{
-                bgcolor: trendBg,
-                color: trendColor,
-                fontWeight: 700,
-                fontSize: '0.7rem',
-                height: 20,
-              }}
+              sx={{ bgcolor: trendBg, color: trendColor, fontWeight: 700, fontSize: '0.7rem', height: 20 }}
             />
           </Stack>
         </Stack>
@@ -324,12 +306,7 @@ const EnrollmentItem = ({ user, course, date }) => (
       </Stack>
     </Box>
     {isRecent(date) && (
-      <Chip
-        label="NEW"
-        size="small"
-        variant="outlined"
-        sx={{ fontWeight: 700, fontSize: '0.65rem', height: 22 }}
-      />
+      <Chip label="NEW" size="small" variant="outlined" sx={{ fontWeight: 700, fontSize: '0.65rem', height: 22 }} />
     )}
   </MotionPaper>
 );
@@ -382,13 +359,7 @@ const CompletionItem = ({ user, course, date }) => (
       <Chip
         label="VERIFIED"
         size="small"
-        sx={{
-          bgcolor: '#e6f4ea',
-          color: '#16a34a',
-          fontWeight: 700,
-          fontSize: '0.65rem',
-          height: 20,
-        }}
+        sx={{ bgcolor: '#e6f4ea', color: '#16a34a', fontWeight: 700, fontSize: '0.65rem', height: 20 }}
       />
       <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.68rem' }}>
         {timeAgo(date)}
@@ -400,43 +371,58 @@ const CompletionItem = ({ user, course, date }) => (
 const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const fetchDashboardStats = async () => {
-      if (DEMO_MODE) {
-        // Skip the real API call entirely and use the sample dataset above,
-        // so you can see computeChange() produce real, varying percentages.
+  const fetchDashboardStats = useCallback(async (isMounted) => {
+    if (DEMO_MODE) {
+      if (isMounted()) {
         setStats(DEMO_STATS);
         setLoading(false);
-        return;
       }
-      try {
-        const response = await api.get('/admin/dashboard-stats/');
+      return;
+    }
+    try {
+      const response = await api.get('/admin/dashboard-stats/');
+      if (isMounted()) {
         setStats(response.data);
-      } catch (error) {
-        console.error('Error fetching dashboard stats:', error);
-      } finally {
-        setLoading(false);
+        setError(null);
       }
-    };
-
-    fetchDashboardStats();
+    } catch (err) {
+      console.error('Error fetching dashboard stats:', err);
+      if (isMounted()) {
+        setError('Unable to load dashboard data. Please try refreshing the page.');
+      }
+    } finally {
+      if (isMounted()) setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    const isMounted = () => mounted;
+    fetchDashboardStats(isMounted);
+    return () => {
+      mounted = false;
+    };
+  }, [fetchDashboardStats]);
 
   if (loading) {
     return (
-      <Box
-        display="flex"
-        flexDirection="column"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="60vh"
-        gap={2}
-      >
+      <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" minHeight="60vh" gap={2}>
         <CircularProgress size={48} />
         <Typography variant="body1" color="text.secondary">
           Loading dashboard...
         </Typography>
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh" sx={{ p: 3 }}>
+        <Alert severity="error" sx={{ maxWidth: 480 }}>
+          {error}
+        </Alert>
       </Box>
     );
   }
@@ -455,50 +441,19 @@ const AdminDashboard = () => {
 
   const enrollments = stats.recentEnrollments || [];
   const completions = stats.recentCompletions || [];
-  // Completion rate: use API value if present, otherwise derive a simple ratio as a fallback
-  const completionRate =
-    stats.completionRate ??
-    (stats.totalEnrollments
-      ? Math.round((completions.length / Math.max(enrollments.length + completions.length, 1)) * 100)
-      : 0);
+
+  // FIX: previously this derived a fallback "completion rate" from
+  // completions.length / (enrollments.length + completions.length), which is
+  // just the ratio of items in the *recent activity feed* — not a real
+  // completion rate. That produced numbers with no relationship to actual
+  // course-completion performance. Now we trust the API's real
+  // completionRate and default to 0 (clearly "no data") rather than fabricate
+  // a number.
+  const completionRate = stats.completionRate ?? 0;
 
   return (
     <Box sx={{ p: { xs: 2, md: 3 }, bgcolor: '#f6f7fb' }}>
       {/* Stats Cards */}
-      {/*
-        Each StatCard compares THIS MONTH's total against LAST MONTH's total (month-over-month).
-
-        Preferred backend shape (see /admin/dashboard-stats/) — once these fields exist,
-        the cards automatically use them instead of the fallback below:
-        {
-          totalUsers: 128,
-          totalUsersPrevMonth: 110,
-          totalUsersThisMonth: 128,
-          activeCourses: 12,
-          activeCoursesPrevMonth: 10,
-          activeCoursesThisMonth: 12,
-          totalTeams: 8,
-          totalTeamsPrevMonth: 6,
-          totalTeamsThisMonth: 8,
-          totalEnrollments: 340,
-          totalEnrollmentsPrevMonth: 280,
-          totalEnrollmentsThisMonth: 340,
-          ...
-        }
-
-        FALLBACK (used right now, since the backend doesn't send *PrevMonth/*ThisMonth yet):
-        StatCard treats the plain total (`value`) as "this month" and assumes 0 for
-        "last month" when no explicit fields are passed. That produces exactly the
-        behavior you want with today's data:
-          - Total Users = 1   -> no prior baseline, 1 this month -> "+100.0%"
-          - Active Courses = 0 -> nothing this month either -> "0.0%"
-          - Total Teams = 0    -> "0.0%"
-          - Total Enrollments = 0 -> "0.0%"
-        As soon as real prevMonth/thisMonth numbers start coming from the backend
-        (e.g. 6 last month -> 8 this month), the same computeChange() logic will
-        automatically calculate the real increase/decrease (e.g. "+33.3%") and the
-        sparkline will plot that real two-point trend instead of [0, value].
-      */}
       <MotionBox
         component={Grid}
         container
@@ -548,13 +503,7 @@ const AdminDashboard = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.25, ease: [0.16, 1, 0.3, 1] }}
-        sx={{
-          p: { xs: 2.5, md: 4 },
-          borderRadius: '20px',
-          border: '1px solid',
-          borderColor: 'divider',
-          width: '100%',
-        }}
+        sx={{ p: { xs: 2.5, md: 4 }, borderRadius: '20px', border: '1px solid', borderColor: 'divider', width: '100%' }}
       >
         <Box sx={{ mb: 2 }}>
           <Typography variant="h5" sx={{ fontWeight: 700, color: 'text.primary', mb: 0.5 }}>
@@ -572,15 +521,7 @@ const AdminDashboard = () => {
           <Grid size={{ xs: 12, lg: 6 }}>
             <Typography
               variant="overline"
-              sx={{
-                fontWeight: 700,
-                color: '#059669',
-                mb: 2,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-                letterSpacing: '0.06em',
-              }}
+              sx={{ fontWeight: 700, color: '#059669', mb: 2, display: 'flex', alignItems: 'center', gap: 1, letterSpacing: '0.06em' }}
             >
               <MenuBook sx={{ fontSize: 18 }} />
               Latest Enrollments
@@ -588,7 +529,7 @@ const AdminDashboard = () => {
 
             {enrollments.length > 0 ? (
               <Box sx={{ mt: 2 }}>
-                <AnimatePresence initial={true}>
+                <AnimatePresence initial>
                   {enrollments.map((enrollment) => (
                     <EnrollmentItem
                       key={enrollment.id}
@@ -601,14 +542,8 @@ const AdminDashboard = () => {
                 <Button
                   fullWidth
                   variant="outlined"
-                  sx={{
-                    mt: 1,
-                    borderRadius: '12px',
-                    borderStyle: 'dashed',
-                    textTransform: 'none',
-                    color: 'text.secondary',
-                    borderColor: 'divider',
-                  }}
+                  onClick={() => fetchDashboardStats(() => true)}
+                  sx={{ mt: 1, borderRadius: '12px', borderStyle: 'dashed', textTransform: 'none', color: 'text.secondary', borderColor: 'divider' }}
                 >
                   Load More Activity
                 </Button>
@@ -627,29 +562,16 @@ const AdminDashboard = () => {
             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
               <Typography
                 variant="overline"
-                sx={{
-                  fontWeight: 700,
-                  color: '#ea580c',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1,
-                  letterSpacing: '0.06em',
-                }}
+                sx={{ fontWeight: 700, color: '#ea580c', display: 'flex', alignItems: 'center', gap: 1, letterSpacing: '0.06em' }}
               >
-                <UndoRounded sx={{ fontSize: 18, transform: 'scaleX(-1)' }} />
+                <CheckCircle sx={{ fontSize: 18 }} />
                 Latest Course Completions
-              </Typography>
-              <Typography
-                variant="caption"
-                sx={{ color: 'text.secondary', textDecoration: 'underline', cursor: 'pointer' }}
-              >
-                View All History
               </Typography>
             </Stack>
 
             {completions.length > 0 ? (
               <Box sx={{ mt: 2 }}>
-                <AnimatePresence initial={true}>
+                <AnimatePresence initial>
                   {completions.map((completion) => (
                     <CompletionItem
                       key={completion.id}
@@ -671,32 +593,9 @@ const AdminDashboard = () => {
             {/* Completion rate donut */}
             <Stack alignItems="center" spacing={1.5} sx={{ mt: 4, mb: 1 }}>
               <Box sx={{ position: 'relative', display: 'inline-flex' }}>
-                <CircularProgress
-                  variant="determinate"
-                  value={100}
-                  size={90}
-                  thickness={4}
-                  sx={{ color: 'grey.200', position: 'absolute' }}
-                />
-                <CircularProgress
-                  variant="determinate"
-                  value={completionRate}
-                  size={90}
-                  thickness={4}
-                  sx={{ color: '#7c3aed' }}
-                />
-                <Box
-                  sx={{
-                    top: 0,
-                    left: 0,
-                    bottom: 0,
-                    right: 0,
-                    position: 'absolute',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
+                <CircularProgress variant="determinate" value={100} size={90} thickness={4} sx={{ color: 'grey.200', position: 'absolute' }} />
+                <CircularProgress variant="determinate" value={completionRate} size={90} thickness={4} sx={{ color: '#7c3aed' }} />
+                <Box sx={{ top: 0, left: 0, bottom: 0, right: 0, position: 'absolute', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Typography variant="caption" sx={{ fontWeight: 700 }}>
                     {completionRate}%
                   </Typography>
@@ -708,12 +607,7 @@ const AdminDashboard = () => {
               <Button
                 variant="contained"
                 endIcon={<ArrowForward sx={{ fontSize: 16 }} />}
-                sx={{
-                  borderRadius: '10px',
-                  textTransform: 'none',
-                  bgcolor: '#111827',
-                  '&:hover': { bgcolor: '#1f2937' },
-                }}
+                sx={{ borderRadius: '10px', textTransform: 'none', bgcolor: '#111827', '&:hover': { bgcolor: '#1f2937' } }}
               >
                 View Full History
               </Button>

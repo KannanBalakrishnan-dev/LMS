@@ -34,6 +34,7 @@ import CertificateTemplateUpload from './pages/admin/CertificateTemplateUpload';
 import RequestManagement from './pages/admin/RequestManagement';
 import DeletedActions from './pages/admin/DeletedActions';
 import FeedbackManagement from './pages/admin/FeedbackManagement';
+import HelpCenter from './pages/admin/Helpcenter';
 
 
 // Student Pages
@@ -44,6 +45,9 @@ import CourseView from './pages/student/CourseView';
 import StudentPerformance from './pages/student/Performance';
 import StudentFeedback from './pages/student/StudentFeedback';
 import CreditPoints from './pages/student/CreditPoints';
+import AiTutor from './pages/student/AiTutor';
+import StudyAssistant from './pages/student/Studyassistant';
+import ChatHistory from './pages/student/Chathistory';
 
 // Lesson Page (NO BLUE BOX)
 import LessonPage from './pages/LessonPage';
@@ -133,6 +137,7 @@ function AppContent() {
                                 <Route path="requests" element={<RequestManagement />} />
                                 <Route path="deleted-actions" element={<DeletedActions />} />
                                 <Route path="feedback" element={<FeedbackManagement />} />
+                                <Route path="help" element={<HelpCenter />} />
 
                             </Route>
 
@@ -161,6 +166,9 @@ function AppContent() {
                                 <Route path="course/:id" element={<CourseView />} />
                                 <Route path="performance" element={<StudentPerformance />} />
                                 <Route path="feedback" element={<StudentFeedback />} />
+                                <Route path="ai-tutor" element={<AiTutor />} />
+                                <Route path="study-assistant" element={<StudyAssistant />} />
+                                <Route path="chat-history" element={<ChatHistory />} />
                             </Route>
 
                             <Route path="*" element={<Navigate to="/" replace />} />
