@@ -19,9 +19,10 @@ urlpatterns = [
     path('api/', include(router.urls)),
 
     # Authentication APIs
-   path('send-otp/', send_otp)
-path('verify-otp/', verify_otp_view)
-path('google-login/', google_login)
+    path('api/send-otp/', send_otp, name='send-otp'),
+    path('api/verify-otp/', verify_otp_view, name='verify-otp'),
+    path('api/google-login/', google_login, name='google-login'),
+    path('api/generate-otp/', views.generate_otp, name='generate-otp'),
 
     # Certificate APIs
     path(
