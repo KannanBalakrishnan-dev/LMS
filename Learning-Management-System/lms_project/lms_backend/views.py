@@ -1,3 +1,4 @@
+from google import genai
 from rest_framework import viewsets, status, generics
 from rest_framework.decorators import action, api_view, authentication_classes, permission_classes
 from rest_framework.response import Response
@@ -55,6 +56,69 @@ from django.utils.crypto import get_random_string
 import logging
 from django.db import IntegrityError
 from django.db.models.deletion import ProtectedError
+
+
+
+
+# ==============================
+# GEMINI AI ASSISTANT API
+# ==============================
+
+client = genai.Client(
+    api_key=os.getenv("GEMINI_API_KEY")
+)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def ai_chat(request):
+
+    try:
+        message = request.data.get("message")
+
+        if not message:
+            return Response(
+                {
+                    "error": "Message required"
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=f"""
+            You are an AI Assistant for LMS Platform.
+
+            Help:
+            - Students doubts
+            - Course explanations
+            - Learning support
+            - Quiz guidance
+
+            Question:
+            {message}
+            """
+        )
+
+
+        return Response(
+            {
+                "success": True,
+                "reply": response.text
+            }
+        )
+
+
+    except Exception as e:
+
+        return Response(
+            {
+                "success":False,
+                "error":str(e)
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
 logger = logging.getLogger(__name__)

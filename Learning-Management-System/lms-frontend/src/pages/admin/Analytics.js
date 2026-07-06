@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import CountUp from "react-countup";
 import {
@@ -15,6 +15,7 @@ import {
   Select,
   MenuItem,
   Stack,
+  Alert,
 } from "@mui/material";
 import { BarChart, LineChart, PieChart } from "@mui/x-charts";
 import PeopleAltRoundedIcon from "@mui/icons-material/PeopleAltRounded";
@@ -23,6 +24,7 @@ import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import AttachMoneyRoundedIcon from "@mui/icons-material/AttachMoneyRounded";
 import TrendingUpRoundedIcon from "@mui/icons-material/TrendingUpRounded";
 import TrendingDownRoundedIcon from "@mui/icons-material/TrendingDownRounded";
+import TrendingFlatRoundedIcon from "@mui/icons-material/TrendingFlatRounded";
 import api from "../../api";
 
 const PALETTE = {
@@ -30,6 +32,7 @@ const PALETTE = {
   purple: { bg: "#F1EBFC", fg: "#8B5CF6" },
   amber: { bg: "#FDF3DF", fg: "#E5A93B" },
   green: { bg: "#E4F4EC", fg: "#1F9D6E" },
+  neutral: { bg: "#F3F4F6", fg: "#6B7280" },
 };
 
 // ─── motion-wrapped MUI primitives ─────────────────────────────────────────
@@ -37,8 +40,7 @@ const MotionCard = motion(Card);
 const MotionBox = motion(Box);
 
 // ─── shared animation variants ─────────────────────────────────────────────
-// Slowed down + smoothed out for a more polished, "premium" feel.
-const EASE = [0.16, 1, 0.3, 1]; // smooth "easeOutExpo"-like curve
+const EASE = [0.16, 1, 0.3, 1];
 
 const staggerContainer = {
   hidden: {},
@@ -58,51 +60,22 @@ const panelEnter = {
 
 /**
  * calcChange(current, previous)
- * Returns a real percentage change between two periods.
- *
- * Rules:
- *  - Both 0            → null   (hide badge — no data yet)
- *  - Previous 0, cur>0 → null   (can't divide by 0; show nothing rather than ∞%)
- *  - Otherwise         → Math.round((cur - prev) / prev * 100)
- *
- * We return null instead of 0 when there is genuinely no change data,
- * so the StatCard can render "No data" and never fabricate a number.
+ * Returns a real percentage change between two periods, or null when there
+ * is genuinely no data to compare (so the caller never fabricates a number).
  */
 const calcChange = (current, previous) => {
-  if (current === 0 && previous === 0) return null; // truly no data
-  if (previous === 0 && current > 0) return 100; // new data appeared → 100% increase
-  if (current === 0 && previous > 0) return -100; // all data gone → 100% decrease
+  if (current === 0 && previous === 0) return null;
+  if (previous === 0 && current > 0) return 100;
+  if (current === 0 && previous > 0) return -100;
   return Math.round(((current - previous) / previous) * 100);
 };
 
-/**
- * changeFromCumulativeTrend(currentTotal, trend)
- * For metrics where `currentTotal` is a running total (e.g. total students,
- * total active courses) and `trend` is an array of *new additions per
- * bucket* over the displayed window (e.g. new registrations per day).
- *
- * We back-calculate what the total was BEFORE this window started:
- *   startOfWindowTotal = currentTotal - sum(trend)
- * then compare that real starting value to the real current value. This
- * reflects actual growth over the window instead of arbitrarily splitting
- * the trend array in half and summing both halves (which can hide real
- * growth whenever a spike happens to land in the "wrong" half).
- */
 const changeFromCumulativeTrend = (currentTotal, trend = []) => {
   const additions = trend.reduce((s, n) => s + (Number(n) || 0), 0);
   const startOfWindowTotal = currentTotal - additions;
   return calcChange(currentTotal, startOfWindowTotal);
 };
 
-/**
- * changeFromPointInTimeTrend(trend)
- * For metrics where each bucket in `trend` is already a snapshot value at
- * that point in time (e.g. completion rate %, avg days to complete,
- * revenue at that date) rather than an incremental addition. Summing these
- * would be meaningless, so instead we compare the FIRST value in the
- * window (oldest) to the LAST value (most recent) — the actual before/after
- * for that metric.
- */
 const changeFromPointInTimeTrend = (trend = []) => {
   const values = trend.map((n) => Number(n) || 0);
   if (!values.length) return null;
@@ -112,15 +85,9 @@ const changeFromPointInTimeTrend = (trend = []) => {
 };
 
 // ─── StatCard ────────────────────────────────────────────────────────────────
-// `change` is a number (can be null = no data) representing % change.
-// `changeIsInverted` = true means a *lower* value is the good direction
-// (e.g. "average days to complete" going down is improvement, not decline).
-//
-// The big number now animates in with react-countup instead of snapping to
-// its final value. Pass `countEnd` (the raw numeric target) plus optional
-// `decimals` / `prefix` / `suffix` / `separator`. If `countEnd` is not a
-// finite number (e.g. no revenue source → "—"), we just render `value`
-// as static text.
+// FIX: a change of exactly 0 is now rendered as a neutral (gray, flat-arrow)
+// trend instead of being colored green "good" — previously `change >= 0`
+// counted 0% as an improvement, which is misleading for an unchanged metric.
 const StatCard = ({
   icon,
   iconColor,
@@ -135,13 +102,17 @@ const StatCard = ({
   separator = ",",
 }) => {
   const hasData = change !== null && change !== undefined;
+  const isNeutral = hasData && change === 0;
   const isGoodDirection = hasData
     ? changeIsInverted
-      ? change <= 0
-      : change >= 0
+      ? change < 0
+      : change > 0
     : true;
 
   const canAnimateCount = typeof countEnd === "number" && Number.isFinite(countEnd);
+
+  let trendColor = "text.secondary";
+  if (hasData && !isNeutral) trendColor = isGoodDirection ? "success.main" : "error.main";
 
   return (
     <MotionCard
@@ -158,7 +129,6 @@ const StatCard = ({
       }}
     >
       <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
-        {/* Top row: icon + label */}
         <Stack direction="row" alignItems="center" spacing={1.5} mb={1.25}>
           <Box
             sx={{
@@ -175,26 +145,12 @@ const StatCard = ({
           >
             {icon}
           </Box>
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            fontWeight={500}
-            sx={{ lineHeight: 1.3 }}
-          >
+          <Typography variant="body2" color="text.secondary" fontWeight={500} sx={{ lineHeight: 1.3 }}>
             {label}
           </Typography>
         </Stack>
 
-        {/* Large value */}
-        <Typography
-          sx={{
-            fontSize: "1.75rem",
-            fontWeight: 700,
-            lineHeight: 1.2,
-            mb: 1,
-            color: "text.primary",
-          }}
-        >
+        <Typography sx={{ fontSize: "1.75rem", fontWeight: 700, lineHeight: 1.2, mb: 1, color: "text.primary" }}>
           {canAnimateCount ? (
             <CountUp
               start={0}
@@ -205,35 +161,24 @@ const StatCard = ({
               prefix={prefix}
               suffix={suffix}
               useEasing
-              easingFn={(t, b, c, d) => {
-                // easeOutExpo — matches the EASE curve used elsewhere
-                return t === d ? b + c : c * (-Math.pow(2, -10 * t / d) + 1) + b;
-              }}
+              easingFn={(t, b, c, d) => (t === d ? b + c : c * (-Math.pow(2, (-10 * t) / d) + 1) + b)}
             />
           ) : (
             value
           )}
         </Typography>
 
-        {/* Trend row */}
         {hasData ? (
           <Stack direction="row" alignItems="center" spacing={0.4}>
-            {change >= 0 ? (
-              <TrendingUpRoundedIcon
-                sx={{ fontSize: 15, color: isGoodDirection ? "success.main" : "error.main" }}
-              />
+            {isNeutral ? (
+              <TrendingFlatRoundedIcon sx={{ fontSize: 15, color: "text.secondary" }} />
+            ) : change > 0 ? (
+              <TrendingUpRoundedIcon sx={{ fontSize: 15, color: trendColor }} />
             ) : (
-              <TrendingDownRoundedIcon
-                sx={{ fontSize: 15, color: isGoodDirection ? "success.main" : "error.main" }}
-              />
+              <TrendingDownRoundedIcon sx={{ fontSize: 15, color: trendColor }} />
             )}
-
-            <Typography
-              variant="caption"
-              fontWeight={700}
-              color={isGoodDirection ? "success.main" : "error.main"}
-            >
-              {change >= 0 ? "+" : ""}
+            <Typography variant="caption" fontWeight={700} color={trendColor}>
+              {change > 0 ? "+" : ""}
               {change}%
             </Typography>
           </Stack>
@@ -254,13 +199,7 @@ const ChartCard = ({ title, subtitle, action, children }) => (
   <MotionCard
     variant="outlined"
     variants={cardEnter}
-    sx={{
-      borderRadius: 1,
-      border: "1px solid",
-      borderColor: "divider",
-      boxShadow: "none",
-      height: "100%",
-    }}
+    sx={{ borderRadius: 1, border: "1px solid", borderColor: "divider", boxShadow: "none", height: "100%" }}
   >
     <CardHeader
       title={title}
@@ -278,128 +217,119 @@ const ChartCard = ({ title, subtitle, action, children }) => (
 const Analytics = () => {
   const [selectedTab, setSelectedTab] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
   const [timeRange, setTimeRange] = useState("30d");
-  const [analytics, setAnalytics] = useState({
-    users: {},
-    courses: {},
-    teams: {},
-  });
-  // Full list of courses with real created_on timestamps, used only to
-  // derive an honest "Active Courses" % change when the analytics endpoint
-  // doesn't provide a course-count trend. Stays null if the endpoint
-  // doesn't exist or doesn't return usable data — we never fabricate a
-  // percentage from nothing.
+  const [analytics, setAnalytics] = useState({ users: {}, courses: {}, teams: {} });
   const [courseList, setCourseList] = useState(null);
 
-  useEffect(() => {
-    fetchAnalytics();
-  }, []);
-
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
+    setLoading(true);
+    setFetchError(null);
     try {
-      const [usersRes, coursesRes, teamsRes, courseListRes] = await Promise.allSettled([
+      const [usersRes, coursesRes, teamsRes] = await Promise.allSettled([
         api.get("/analytics/users/"),
         api.get("/analytics/courses/"),
         api.get("/analytics/teams/"),
-        api.get("/courses/"),
       ]);
 
-      if (usersRes.status === "fulfilled" && coursesRes.status === "fulfilled" && teamsRes.status === "fulfilled") {
-        setAnalytics({
-          users: usersRes.value.data,
-          courses: coursesRes.value.data,
-          teams: teamsRes.value.data,
-        });
-      } else {
-        console.error("Error fetching analytics:", { usersRes, coursesRes, teamsRes });
+      const failed = [];
+      const next = { users: {}, courses: {}, teams: {} };
+
+      if (usersRes.status === "fulfilled") next.users = usersRes.value.data;
+      else failed.push("user");
+
+      if (coursesRes.status === "fulfilled") next.courses = coursesRes.value.data;
+      else failed.push("course");
+
+      if (teamsRes.status === "fulfilled") next.teams = teamsRes.value.data;
+      else failed.push("team");
+
+      setAnalytics(next);
+
+      if (failed.length) {
+        console.error("Error fetching analytics sections:", failed, { usersRes, coursesRes, teamsRes });
+        // FIX: previously a partial failure was only logged — the dashboard
+        // silently rendered with empty defaults for the failed section(s),
+        // looking like "0 of everything" instead of "couldn't load this".
+        setFetchError(
+          `Some analytics data (${failed.join(", ")}) failed to load. Showing what's available.`,
+        );
       }
 
-      if (courseListRes.status === "fulfilled") {
-        const data = courseListRes.value.data;
-        // Handle both a plain array response and DRF's default paginated
-        // { results: [...] } shape.
-        const list = Array.isArray(data) ? data : data?.results;
-        if (Array.isArray(list)) setCourseList(list);
+      // FIX: the course-list fallback fetch used to run unconditionally on
+      // every load, even when the courses response already includes a real
+      // trend/change field and the fallback will never be used. Only fetch
+      // it when we'd actually need it.
+      const coursesData = next.courses || {};
+      const needsCourseListFallback =
+        coursesData.activeCourseCountChange == null &&
+        !(Array.isArray(coursesData.enrollmentTrend) && coursesData.enrollmentTrend.length > 0);
+
+      if (needsCourseListFallback) {
+        try {
+          const courseListRes = await api.get("/courses/");
+          const data = courseListRes.data;
+          const list = Array.isArray(data) ? data : data?.results;
+          if (Array.isArray(list)) setCourseList(list);
+        } catch (err) {
+          // Fallback source unavailable — courseList stays null, the
+          // dependent trend just won't render. No user-facing error needed
+          // since this is a secondary, best-effort data source.
+          console.error("Error fetching course list fallback:", err);
+        }
       }
-      // If /courses/ doesn't exist or fails, courseList just stays null —
-      // the fallback below simply won't fire, no error shown to the user.
     } catch (err) {
       console.error("Error fetching analytics:", err);
+      setFetchError("Unable to load analytics data. Please try again.");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchAnalytics();
+  }, [fetchAnalytics]);
 
   // ── Raw values from API ──
   const studentCount = analytics.users.studentCount ?? 0;
   const adminCount = analytics.users.adminCount ?? 0;
-  const activeCourses =
-    analytics.courses.activeCourseCount ??
-    analytics.courses.topCourses?.length ??
-    0;
+  const activeCourses = analytics.courses.activeCourseCount ?? analytics.courses.topCourses?.length ?? 0;
 
-  // Completion rate: prefer the backend's own figure. If it's missing OR
-  // the backend sent 0 while we can see real completions in topCourses
-  // (a sign the backend query is broken rather than the true rate being
-  // zero), fall back to computing it directly from real enrollment/
-  // completion counts already present in the response — never a made-up
-  // number, just a different, verifiable way to derive the same real data.
   const topCourses = analytics.courses.topCourses ?? [];
-  const totalEnrollmentsFromTopCourses = topCourses.reduce(
-    (s, c) => s + (Number(c.enrollments) || 0),
-    0,
-  );
-  const totalCompletionsFromTopCourses = topCourses.reduce(
-    (s, c) => s + (Number(c.completions) || 0),
-    0,
-  );
+  const totalEnrollmentsFromTopCourses = topCourses.reduce((s, c) => s + (Number(c.enrollments) || 0), 0);
+  const totalCompletionsFromTopCourses = topCourses.reduce((s, c) => s + (Number(c.completions) || 0), 0);
   const computedCompletionRate =
     totalEnrollmentsFromTopCourses > 0
-      ? Math.round(
-          (totalCompletionsFromTopCourses / totalEnrollmentsFromTopCourses) * 100,
-        )
+      ? Math.round((totalCompletionsFromTopCourses / totalEnrollmentsFromTopCourses) * 100)
       : null;
 
+  // FIX: previously `backendCompletionRate !== 0 ? backendCompletionRate : ...`
+  // treated a genuine 0% from the backend as "missing" and silently replaced
+  // it with the computed fallback, which could show a nonzero rate when the
+  // real rate is truly zero. Now we only fall back when the backend value is
+  // actually absent (null/undefined), never when it's a real 0.
   const backendCompletionRate = analytics.courses.overallCompletionRate;
   const completionRate =
-    backendCompletionRate != null && backendCompletionRate !== 0
-      ? backendCompletionRate
-      : computedCompletionRate ?? backendCompletionRate ?? 0;
+    backendCompletionRate != null ? backendCompletionRate : computedCompletionRate ?? 0;
 
-  // Revenue has no backing data model in this LMS (no payments/subscriptions
-  // table) unless your backend computes it from something else. Treat as 0
-  // until a real revenue source exists, rather than showing a misleading number.
   const revenue = analytics.teams.revenue ?? 0;
   const hasRevenueSource = analytics.teams.revenue != null;
 
-  // ── Compute % change ──
-  // Priority 1: if the API returns explicit change fields, use them (most accurate).
-  // Priority 2: derive from trend arrays already in the response (approximate).
-  // Priority 3: null → StatCard shows "No comparison data yet" instead of a fake number.
-
-  const studentChange = (() => {
-    if (analytics.users.studentCountChange != null)
-      return analytics.users.studentCountChange;
+  const studentChange = useMemo(() => {
+    if (analytics.users.studentCountChange != null) return analytics.users.studentCountChange;
     const rawTrend = analytics.users.registrationTrend;
-    if (!Array.isArray(rawTrend) || rawTrend.length === 0) return null; // field not sent by backend
-    const trend = rawTrend.map((d) => d.count);
-    return changeFromCumulativeTrend(studentCount, trend);
-  })();
+    if (!Array.isArray(rawTrend) || rawTrend.length === 0) return null;
+    return changeFromCumulativeTrend(studentCount, rawTrend.map((d) => d.count));
+  }, [analytics.users, studentCount]);
 
-  const coursesChange = (() => {
-    if (analytics.courses.activeCourseCountChange != null)
-      return analytics.courses.activeCourseCountChange;
+  const coursesChange = useMemo(() => {
+    if (analytics.courses.activeCourseCountChange != null) return analytics.courses.activeCourseCountChange;
 
     const rawTrend = analytics.courses.enrollmentTrend;
     if (Array.isArray(rawTrend) && rawTrend.length > 0) {
-      const trend = rawTrend.map((d) => d.count);
-      return changeFromCumulativeTrend(activeCourses, trend);
+      return changeFromCumulativeTrend(activeCourses, rawTrend.map((d) => d.count));
     }
 
-    // Fallback: derive a real percentage from actual course creation dates
-    // (fetched separately via /courses/) instead of an unavailable trend
-    // field. Compares "active courses that existed 30 days ago" to "active
-    // courses that exist now" — genuine data, not a guess.
     if (Array.isArray(courseList) && courseList.length > 0) {
       const WINDOW_DAYS = 30;
       const windowStart = new Date();
@@ -409,9 +339,7 @@ const Analytics = () => {
       const createdOn = (c) => new Date(c.createdOn ?? c.created_on);
 
       const activeNow = courseList.filter(isActive).length;
-      const activeAtWindowStart = courseList.filter(
-        (c) => isActive(c) && createdOn(c) <= windowStart,
-      ).length;
+      const activeAtWindowStart = courseList.filter((c) => isActive(c) && createdOn(c) <= windowStart).length;
 
       if (activeNow > 0 || activeAtWindowStart > 0) {
         return calcChange(activeNow, activeAtWindowStart);
@@ -419,106 +347,81 @@ const Analytics = () => {
     }
 
     return null;
-  })();
+  }, [analytics.courses, activeCourses, courseList]);
 
-  // FIX: This previously fell back to `completionTimeTrend` (avg DAYS to
-  // finish a course) whenever `overallCompletionRateChange` was missing.
-  // That's a completely different metric from completion RATE, and an
-  // increase in "days to complete" was even being shown as a green "good"
-  // trend, which is backwards. Now:
-  //   1. Prefer an explicit `overallCompletionRateChange` from the API.
-  //   2. Otherwise derive a rate-based trend from `completionTimeTrend`
-  //      point counts if the API shape includes a `completions`/`total`
-  //      pair per bucket (safe, same unit as the metric).
-  //   3. Otherwise show "No comparison data yet" — never borrow an
-  //      unrelated metric just to produce a number.
-  const completionChange = (() => {
-    if (analytics.courses.overallCompletionRateChange != null)
-      return analytics.courses.overallCompletionRateChange;
+  const completionChange = useMemo(() => {
+    if (analytics.courses.overallCompletionRateChange != null) return analytics.courses.overallCompletionRateChange;
 
-    const buckets = analytics.courses.completionRateTrend; // expected: [{ date, rate }]
+    const buckets = analytics.courses.completionRateTrend;
     if (Array.isArray(buckets) && buckets.length) {
-      const rates = buckets.map((d) => Number(d.rate) || 0);
-      return changeFromPointInTimeTrend(rates);
+      return changeFromPointInTimeTrend(buckets.map((d) => Number(d.rate) || 0));
     }
 
-    return null; // no safe same-unit series available — don't guess
-  })();
+    return null;
+  }, [analytics.courses]);
 
-  // Separate, correctly-labeled metric: average days to complete a course.
-  // Lower is better, so this uses `changeIsInverted` on its own StatCard-style
-  // treatment inside the chart subtitle rather than being folded into the
-  // Completion Rate card above.
-  const avgCompletionDaysChange = (() => {
+  const avgCompletionDaysChange = useMemo(() => {
     const trend = analytics.courses.completionTimeTrend?.map((d) => d.avgDays) ?? [];
     return changeFromPointInTimeTrend(trend);
-  })();
+  }, [analytics.courses]);
 
-  const revenueChange = (() => {
+  const revenueChange = useMemo(() => {
     if (!hasRevenueSource) return null;
-    if (analytics.teams.revenueChange != null)
-      return analytics.teams.revenueChange;
+    if (analytics.teams.revenueChange != null) return analytics.teams.revenueChange;
     const rawTrend = analytics.teams.revenueTrend;
-    if (!Array.isArray(rawTrend) || rawTrend.length === 0) return null; // field not sent by backend
-    const trend = rawTrend.map((d) => d.amount);
-    return changeFromCumulativeTrend(revenue, trend);
-  })();
+    if (!Array.isArray(rawTrend) || rawTrend.length === 0) return null;
+    return changeFromCumulativeTrend(revenue, rawTrend.map((d) => d.amount));
+  }, [analytics.teams, hasRevenueSource, revenue]);
 
-  // ── Stat cards config ──
-  // `countEnd` carries the raw numeric target for the CountUp animation;
-  // `value` remains as a static fallback string for cases with no numeric
-  // target (e.g. revenue with no data source, rendered as "—").
-  const statCards = [
-    {
-      label: "Total Students",
-      value: studentCount.toLocaleString(),
-      countEnd: studentCount,
-      separator: ",",
-      change: studentChange,
-      icon: <PeopleAltRoundedIcon fontSize="small" />,
-      color: PALETTE.blue,
-    },
-    {
-      label: "Active Courses",
-      value: activeCourses.toLocaleString(),
-      countEnd: activeCourses,
-      separator: ",",
-      change: coursesChange,
-      icon: <MenuBookRoundedIcon fontSize="small" />,
-      color: PALETTE.purple,
-    },
-    {
-      label: "Completion Rate",
-      value: `${completionRate}%`,
-      countEnd: completionRate,
-      suffix: "%",
-      change: completionChange,
-      icon: <CheckCircleRoundedIcon fontSize="small" />,
-      color: PALETTE.amber,
-    },
-    {
-      label: "Revenue",
-      value: hasRevenueSource ? `$${(revenue / 1000).toFixed(1)}k` : "—",
-      countEnd: hasRevenueSource ? revenue / 1000 : null,
-      decimals: 1,
-      prefix: "$",
-      suffix: "k",
-      change: revenueChange,
-      icon: <AttachMoneyRoundedIcon fontSize="small" />,
-      color: PALETTE.green,
-    },
-  ];
+  // ── Stat cards config (memoized so identity is stable across renders that
+  // don't actually change the underlying data — icons/colors are recreated
+  // otherwise on every render for no reason) ──
+  const statCards = useMemo(
+    () => [
+      {
+        label: "Total Students",
+        value: studentCount.toLocaleString(),
+        countEnd: studentCount,
+        separator: ",",
+        change: studentChange,
+        icon: <PeopleAltRoundedIcon fontSize="small" />,
+        color: PALETTE.blue,
+      },
+      {
+        label: "Active Courses",
+        value: activeCourses.toLocaleString(),
+        countEnd: activeCourses,
+        separator: ",",
+        change: coursesChange,
+        icon: <MenuBookRoundedIcon fontSize="small" />,
+        color: PALETTE.purple,
+      },
+      {
+        label: "Completion Rate",
+        value: `${completionRate}%`,
+        countEnd: completionRate,
+        suffix: "%",
+        change: completionChange,
+        icon: <CheckCircleRoundedIcon fontSize="small" />,
+        color: PALETTE.amber,
+      },
+      {
+        label: "Revenue",
+        value: hasRevenueSource ? `$${(revenue / 1000).toFixed(1)}k` : "—",
+        countEnd: hasRevenueSource ? revenue / 1000 : null,
+        decimals: 1,
+        prefix: "$",
+        suffix: "k",
+        change: revenueChange,
+        icon: <AttachMoneyRoundedIcon fontSize="small" />,
+        color: PALETTE.green,
+      },
+    ],
+    [studentCount, studentChange, activeCourses, coursesChange, completionRate, completionChange, hasRevenueSource, revenue, revenueChange],
+  );
 
   const StatCardsRow = () => (
-    <MotionBox
-      component={Grid}
-      container
-      spacing={2.5}
-      sx={{ mb: 3 }}
-      variants={staggerContainer}
-      initial="hidden"
-      animate="visible"
-    >
+    <MotionBox component={Grid} container spacing={2.5} sx={{ mb: 3 }} variants={staggerContainer} initial="hidden" animate="visible">
       {statCards.map((card) => (
         <Grid key={card.label} size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard
@@ -538,22 +441,17 @@ const Analytics = () => {
     </MotionBox>
   );
 
-  // ── Pie chart data ──
-  const totalUsers = studentCount + adminCount || 1;
-  const studentPct = Math.round((studentCount / totalUsers) * 100);
-  const adminPct = 100 - studentPct;
-
-  // ─── Tab panels ──────────────────────────────────────────────────────────
+  // FIX: when there are genuinely no users at all, this used to compute
+  // studentPct = 0 / 1 = 0 and adminPct = 100, implying "100% admins" for a
+  // platform with zero users. Now we track whether there's real data and
+  // render an explicit empty state in the chart instead.
+  const totalUsers = studentCount + adminCount;
+  const hasUserData = totalUsers > 0;
+  const studentPct = hasUserData ? Math.round((studentCount / totalUsers) * 100) : 0;
+  const adminPct = hasUserData ? 100 - studentPct : 0;
 
   const UserAnalytics = () => (
-    <MotionBox
-      component={Grid}
-      container
-      spacing={3}
-      variants={staggerContainer}
-      initial="hidden"
-      animate="visible"
-    >
+    <MotionBox component={Grid} container spacing={3} variants={staggerContainer} initial="hidden" animate="visible">
       <Grid size={{ xs: 12, md: 6 }}>
         <ChartCard
           title="User Registration Trends"
@@ -575,8 +473,7 @@ const Analytics = () => {
             skipAnimation
             series={[
               {
-                data:
-                  analytics.users.registrationTrend?.map((d) => d.count) || [],
+                data: analytics.users.registrationTrend?.map((d) => d.count) || [],
                 label: "New Users",
                 area: true,
                 showMark: true,
@@ -584,134 +481,84 @@ const Analytics = () => {
                 color: PALETTE.green.fg,
               },
             ]}
-            xAxis={[
-              {
-                data:
-                  analytics.users.registrationTrend?.map((d) => d.date) || [],
-                scaleType: "band",
-              },
-            ]}
+            xAxis={[{ data: analytics.users.registrationTrend?.map((d) => d.date) || [], scaleType: "band" }]}
             grid={{ horizontal: true }}
             sx={{
               ".MuiAreaElement-root": { fillOpacity: 0.12 },
-              ".MuiChartsAxis-line, .MuiChartsAxis-tick": {
-                stroke: "transparent",
-              },
+              ".MuiChartsAxis-line, .MuiChartsAxis-tick": { stroke: "transparent" },
             }}
           />
         </ChartCard>
       </Grid>
       <Grid size={{ xs: 12, md: 6 }}>
         <ChartCard title="User Type Distribution">
-          <Box display="flex" flexDirection="column" alignItems="center">
-            <motion.div
-              initial={{ rotate: -360, opacity: 0 }}
-              animate={{ rotate: 0, opacity: 1 }}
-              transition={{ duration: 1.4, ease: EASE }}
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                width: "100%",
-                transformOrigin: "center center",
-              }}
-            >
-              <PieChart
-                height={260}
-                skipAnimation
-                series={[
-                  {
-                    innerRadius: 70,
-                    outerRadius: 110,
-                    paddingAngle: 2,
-                    cornerRadius: 6,
-                    data: [
-                      {
-                        id: 0,
-                        value: studentCount,
-                        label: "Students",
-                        color: PALETTE.green.fg,
-                      },
-                      {
-                        id: 1,
-                        value: adminCount,
-                        label: "Admins",
-                        color: PALETTE.amber.fg,
-                      },
-                    ],
-                  },
-                ]}
-                hideLegend
-              />
-            </motion.div>
-            <Stack spacing={1.5} sx={{ width: "100%", maxWidth: 280, mt: 1 }}>
-              {[
-                { label: "Students", pct: studentPct, color: PALETTE.green.fg },
-                { label: "Admins", pct: adminPct, color: PALETTE.amber.fg },
-              ].map((row) => (
-                <Stack
-                  key={row.label}
-                  direction="row"
-                  alignItems="center"
-                  justifyContent="space-between"
-                >
-                  <Stack direction="row" alignItems="center" spacing={1}>
-                    <Box
-                      sx={{
-                        width: 10,
-                        height: 10,
-                        borderRadius: "50%",
-                        bgcolor: row.color,
-                      }}
-                    />
-                    <Typography variant="body2">{row.label}</Typography>
+          {hasUserData ? (
+            <Box display="flex" flexDirection="column" alignItems="center">
+              <motion.div
+                initial={{ rotate: -360, opacity: 0 }}
+                animate={{ rotate: 0, opacity: 1 }}
+                transition={{ duration: 1.4, ease: EASE }}
+                style={{ display: "flex", justifyContent: "center", alignItems: "center", width: "100%", transformOrigin: "center center" }}
+              >
+                <PieChart
+                  height={260}
+                  skipAnimation
+                  series={[
+                    {
+                      innerRadius: 70,
+                      outerRadius: 110,
+                      paddingAngle: 2,
+                      cornerRadius: 6,
+                      data: [
+                        { id: 0, value: studentCount, label: "Students", color: PALETTE.green.fg },
+                        { id: 1, value: adminCount, label: "Admins", color: PALETTE.amber.fg },
+                      ],
+                    },
+                  ]}
+                  hideLegend
+                />
+              </motion.div>
+              <Stack spacing={1.5} sx={{ width: "100%", maxWidth: 280, mt: 1 }}>
+                {[
+                  { label: "Students", pct: studentPct, color: PALETTE.green.fg },
+                  { label: "Admins", pct: adminPct, color: PALETTE.amber.fg },
+                ].map((row) => (
+                  <Stack key={row.label} direction="row" alignItems="center" justifyContent="space-between">
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: row.color }} />
+                      <Typography variant="body2">{row.label}</Typography>
+                    </Stack>
+                    <Typography variant="body2" fontWeight={700}>
+                      <CountUp end={row.pct} suffix="%" duration={1.8} useEasing />
+                    </Typography>
                   </Stack>
-                  <Typography variant="body2" fontWeight={700}>
-                    <CountUp end={row.pct} suffix="%" duration={1.8} useEasing />
-                  </Typography>
-                </Stack>
-              ))}
-            </Stack>
-          </Box>
+                ))}
+              </Stack>
+            </Box>
+          ) : (
+            <Box display="flex" alignItems="center" justifyContent="center" minHeight={260}>
+              <Typography variant="body2" color="text.secondary">
+                No user data available
+              </Typography>
+            </Box>
+          )}
         </ChartCard>
       </Grid>
     </MotionBox>
   );
 
   const CourseAnalytics = () => (
-    <MotionBox
-      component={Grid}
-      container
-      spacing={3}
-      variants={staggerContainer}
-      initial="hidden"
-      animate="visible"
-    >
+    <MotionBox component={Grid} container spacing={3} variants={staggerContainer} initial="hidden" animate="visible">
       <Grid size={{ xs: 12 }}>
         <ChartCard title="Course Enrollment Statistics">
           <BarChart
             height={300}
             skipAnimation
             series={[
-              {
-                data:
-                  analytics.courses.topCourses?.map((c) => c.enrollments) || [],
-                label: "Enrollments",
-                color: PALETTE.blue.fg,
-              },
-              {
-                data:
-                  analytics.courses.topCourses?.map((c) => c.completions) || [],
-                label: "Completions",
-                color: PALETTE.green.fg,
-              },
+              { data: analytics.courses.topCourses?.map((c) => c.enrollments) || [], label: "Enrollments", color: PALETTE.blue.fg },
+              { data: analytics.courses.topCourses?.map((c) => c.completions) || [], label: "Completions", color: PALETTE.green.fg },
             ]}
-            xAxis={[
-              {
-                data: analytics.courses.topCourses?.map((c) => c.title) || [],
-                scaleType: "band",
-              },
-            ]}
+            xAxis={[{ data: analytics.courses.topCourses?.map((c) => c.title) || [], scaleType: "band" }]}
             grid={{ horizontal: true }}
           />
         </ChartCard>
@@ -721,7 +568,7 @@ const Analytics = () => {
           title="Average Course Completion Time"
           subtitle={
             avgCompletionDaysChange != null
-              ? `${avgCompletionDaysChange <= 0 ? "▼ faster" : "▲ slower"} ${Math.abs(avgCompletionDaysChange)}% vs. previous period`
+              ? `${avgCompletionDaysChange < 0 ? "▼ faster" : avgCompletionDaysChange > 0 ? "▲ slower" : "no change"} ${Math.abs(avgCompletionDaysChange)}% vs. previous period`
               : undefined
           }
         >
@@ -730,24 +577,14 @@ const Analytics = () => {
             skipAnimation
             series={[
               {
-                data:
-                  analytics.courses.completionTimeTrend?.map(
-                    (d) => d.avgDays,
-                  ) || [],
+                data: analytics.courses.completionTimeTrend?.map((d) => d.avgDays) || [],
                 label: "Days",
                 area: true,
                 curve: "natural",
                 color: PALETTE.purple.fg,
               },
             ]}
-            xAxis={[
-              {
-                data:
-                  analytics.courses.completionTimeTrend?.map((d) => d.month) ||
-                  [],
-                scaleType: "band",
-              },
-            ]}
+            xAxis={[{ data: analytics.courses.completionTimeTrend?.map((d) => d.month) || [], scaleType: "band" }]}
             grid={{ horizontal: true }}
             sx={{ ".MuiAreaElement-root": { fillOpacity: 0.12 } }}
           />
@@ -764,30 +601,10 @@ const Analytics = () => {
                 paddingAngle: 2,
                 cornerRadius: 6,
                 data: [
-                  {
-                    id: 0,
-                    value: analytics.courses.quizStats?.excellent || 0,
-                    label: "Excellent (90-100%)",
-                    color: PALETTE.green.fg,
-                  },
-                  {
-                    id: 1,
-                    value: analytics.courses.quizStats?.good || 0,
-                    label: "Good (70-89%)",
-                    color: PALETTE.blue.fg,
-                  },
-                  {
-                    id: 2,
-                    value: analytics.courses.quizStats?.average || 0,
-                    label: "Average (50-69%)",
-                    color: PALETTE.amber.fg,
-                  },
-                  {
-                    id: 3,
-                    value: analytics.courses.quizStats?.poor || 0,
-                    label: "Poor (0-49%)",
-                    color: PALETTE.purple.fg,
-                  },
+                  { id: 0, value: analytics.courses.quizStats?.excellent || 0, label: "Excellent (90-100%)", color: PALETTE.green.fg },
+                  { id: 1, value: analytics.courses.quizStats?.good || 0, label: "Good (70-89%)", color: PALETTE.blue.fg },
+                  { id: 2, value: analytics.courses.quizStats?.average || 0, label: "Average (50-69%)", color: PALETTE.amber.fg },
+                  { id: 3, value: analytics.courses.quizStats?.poor || 0, label: "Poor (0-49%)", color: PALETTE.purple.fg },
                 ],
               },
             ]}
@@ -798,33 +615,14 @@ const Analytics = () => {
   );
 
   const TeamAnalytics = () => (
-    <MotionBox
-      component={Grid}
-      container
-      spacing={3}
-      variants={staggerContainer}
-      initial="hidden"
-      animate="visible"
-    >
+    <MotionBox component={Grid} container spacing={3} variants={staggerContainer} initial="hidden" animate="visible">
       <Grid size={{ xs: 12, md: 6 }}>
         <ChartCard title="Team Performance">
           <BarChart
             height={300}
             skipAnimation
-            series={[
-              {
-                data:
-                  analytics.teams.teamPerformance?.map((t) => t.avgScore) || [],
-                label: "Average Score",
-                color: PALETTE.blue.fg,
-              },
-            ]}
-            xAxis={[
-              {
-                data: analytics.teams.teamPerformance?.map((t) => t.name) || [],
-                scaleType: "band",
-              },
-            ]}
+            series={[{ data: analytics.teams.teamPerformance?.map((t) => t.avgScore) || [], label: "Average Score", color: PALETTE.blue.fg }]}
+            xAxis={[{ data: analytics.teams.teamPerformance?.map((t) => t.name) || [], scaleType: "band" }]}
             grid={{ horizontal: true }}
           />
         </ChartCard>
@@ -835,21 +633,9 @@ const Analytics = () => {
             height={300}
             skipAnimation
             series={[
-              {
-                data:
-                  analytics.teams.completionRates?.map(
-                    (t) => t.completionRate,
-                  ) || [],
-                label: "Completion Rate (%)",
-                color: PALETTE.green.fg,
-              },
+              { data: analytics.teams.completionRates?.map((t) => t.completionRate) || [], label: "Completion Rate (%)", color: PALETTE.green.fg },
             ]}
-            xAxis={[
-              {
-                data: analytics.teams.completionRates?.map((t) => t.name) || [],
-                scaleType: "band",
-              },
-            ]}
+            xAxis={[{ data: analytics.teams.completionRates?.map((t) => t.name) || [], scaleType: "band" }]}
             grid={{ horizontal: true }}
           />
         </ChartCard>
@@ -859,12 +645,7 @@ const Analytics = () => {
 
   if (loading) {
     return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="60vh"
-      >
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
         <CircularProgress />
       </Box>
     );
@@ -872,6 +653,12 @@ const Analytics = () => {
 
   return (
     <Box>
+      {fetchError && (
+        <Alert severity="warning" sx={{ mb: 2 }} onClose={() => setFetchError(null)}>
+          {fetchError}
+        </Alert>
+      )}
+
       <MotionBox
         component={Stack}
         direction={{ xs: "column", sm: "row" }}
@@ -892,15 +679,7 @@ const Analytics = () => {
           </Typography>
         </Box>
 
-        <Paper
-          variant="outlined"
-          sx={{
-            p: 0.5,
-            borderRadius: 1,
-            border: "1px solid",
-            borderColor: "divider",
-          }}
-        >
+        <Paper variant="outlined" sx={{ p: 0.5, borderRadius: 1, border: "1px solid", borderColor: "divider" }}>
           <Tabs
             value={selectedTab}
             onChange={(_, v) => setSelectedTab(v)}
@@ -911,17 +690,13 @@ const Analytics = () => {
                 minHeight: 0,
                 py: 1,
                 px: 2.5,
-                borderRadius: 1, // rectangle tab
+                borderRadius: 1,
                 textTransform: "none",
                 fontWeight: 600,
                 color: "text.secondary",
                 transition: "background-color 0.4s ease, color 0.4s ease",
               },
-              "& .Mui-selected": {
-                bgcolor: PALETTE.green.bg,
-                color: `${PALETTE.green.fg} !important`,
-                borderRadius: 1,
-              },
+              "& .Mui-selected": { bgcolor: PALETTE.green.bg, color: `${PALETTE.green.fg} !important`, borderRadius: 1 },
             }}
           >
             <Tab label="User Analytics" disableRipple />
@@ -935,35 +710,17 @@ const Analytics = () => {
 
       <AnimatePresence mode="wait">
         {selectedTab === 0 && (
-          <motion.div
-            key="user"
-            variants={panelEnter}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-          >
+          <motion.div key="user" variants={panelEnter} initial="hidden" animate="visible" exit="exit">
             <UserAnalytics />
           </motion.div>
         )}
         {selectedTab === 1 && (
-          <motion.div
-            key="course"
-            variants={panelEnter}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-          >
+          <motion.div key="course" variants={panelEnter} initial="hidden" animate="visible" exit="exit">
             <CourseAnalytics />
           </motion.div>
         )}
         {selectedTab === 2 && (
-          <motion.div
-            key="team"
-            variants={panelEnter}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-          >
+          <motion.div key="team" variants={panelEnter} initial="hidden" animate="visible" exit="exit">
             <TeamAnalytics />
           </motion.div>
         )}

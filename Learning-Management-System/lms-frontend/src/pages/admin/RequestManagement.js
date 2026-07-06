@@ -14,13 +14,11 @@ import {
   Chip,
   Alert,
   Snackbar,
-  Grid,
   InputAdornment,
   Select,
   MenuItem,
   FormControl,
   InputLabel,
-  TablePagination,
   Table,
   TableBody,
   TableCell,
@@ -39,10 +37,34 @@ import {
   Schedule as ClockIcon,
   CheckCircle as CheckIcon,
   Cancel as XCircleIcon,
-  Search as SearchIcon
+  Search as SearchIcon,
+  ArrowUpward as ArrowUpIcon,
+  ArrowDownward as ArrowDownIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon
 } from '@mui/icons-material';
 import api from '../../api';
 import { useAuth } from '../../contexts/AuthContext';
+
+const INDIGO = '#312E81';
+
+// ---- Helper: build the page-number list with ellipses, e.g. 1 2 3 4 5 ... 13
+const buildPageNumbers = (current, total) => {
+  const pages = [];
+  const windowSize = 1; // pages shown around current
+
+  const add = (p) => pages.push(p);
+
+  add(1);
+  if (current - windowSize > 2) add('...');
+  for (let p = Math.max(2, current - windowSize); p <= Math.min(total - 1, current + windowSize); p++) {
+    add(p);
+  }
+  if (current + windowSize < total - 1) add('...');
+  if (total > 1) add(total);
+
+  return pages;
+};
 
 const RequestManagement = () => {
   const { user } = useAuth();
@@ -61,14 +83,13 @@ const RequestManagement = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [requestTypeFilter, setRequestTypeFilter] = useState('');
-  const [dateFilter, setDateFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState(''); // '', 'today', 'week', 'month'
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [newRequestDialogOpen, setNewRequestDialogOpen] = useState(false);
   const [newRequest, setNewRequest] = useState({
     request_type: '',
     object_title: '',
-
     object_id: '',
     requested_by: user?.full_name || user?.username || '',
     message: ''
@@ -99,7 +120,7 @@ const RequestManagement = () => {
         action: action,
         message: adminMessage
       });
-      
+
       showSnackbar(`Request ${action}d successfully`, 'success');
       setResolveDialogOpen(false);
       setConfirmationDialogOpen(false);
@@ -135,8 +156,6 @@ const RequestManagement = () => {
     setAction('');
   };
 
-
-
   const showSnackbar = (message, severity = 'success') => {
     setSnackbar({ open: true, message, severity });
   };
@@ -145,13 +164,21 @@ const RequestManagement = () => {
     setSnackbar(prev => ({ ...prev, open: false }));
   };
 
-  const getRequestTypeColor = (type) => {
-    if (!type) return '#312E81';
-    if (type.includes('STUDENT')) return '#312E81';
-    if (type.includes('COURSE')) return '#312E81';
-    if (type.includes('CERTIFICATE')) return '#312E81';
-    if (type.includes('DELETE')) return '#F44336';
-    return '#312E81';
+  // ---- Chip styling: soft background + matching text color, not solid fill
+  const getRequestTypeStyle = (type) => {
+    if (!type) return { bg: '#EEF2FF', color: INDIGO };
+    if (type.startsWith('DELETE_')) return { bg: '#FEE2E2', color: '#DC2626' };
+    if (type.includes('STUDENT')) return { bg: '#E0E7FF', color: INDIGO };
+    if (type.includes('COURSE')) return { bg: '#E0E7FF', color: INDIGO };
+    if (type.includes('CERTIFICATE')) return { bg: '#E0E7FF', color: INDIGO };
+    return { bg: '#E0E7FF', color: INDIGO };
+  };
+
+  const getStatusColor = (status) => {
+    if (status === 'PENDING') return '#F59E0B';
+    if (status === 'APPROVED') return '#22A06B';
+    if (status === 'REJECTED') return '#F44336';
+    return '#666';
   };
 
   const formatRequestType = (type) => {
@@ -160,16 +187,16 @@ const RequestManagement = () => {
     return type.replaceAll('_', ' ');
   };
 
-  const StatCard = ({ title, value, icon: IconComponent, bgColor, trend, thisMonth }) => (
+  const StatCard = ({ title, value, icon: IconComponent, color, bg, trend }) => (
     <Paper
       sx={{
         p: 2.5,
         display: 'flex',
         flexDirection: 'column',
         bgcolor: 'white',
-        borderRadius: 2,
+        borderRadius: 3,
         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
-        border: '1px solid #e0e0e0',
+        border: '1px solid #eef0f4',
         height: '100%'
       }}
     >
@@ -178,16 +205,18 @@ const RequestManagement = () => {
           sx={{
             width: 44,
             height: 44,
+            borderRadius: 2,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            flexShrink: 0
+            flexShrink: 0,
+            bgcolor: bg
           }}
         >
-          <IconComponent sx={{ color: bgColor, fontSize: 32 }} />
+          <IconComponent sx={{ color, fontSize: 22 }} />
         </Box>
         <Box>
-          <Typography variant="body2" sx={{ color: '#555', fontWeight: 700 }}>
+          <Typography variant="body2" sx={{ color: '#555', fontWeight: 600 }}>
             {title}
           </Typography>
           <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#111', lineHeight: 1.2 }}>
@@ -195,16 +224,20 @@ const RequestManagement = () => {
           </Typography>
         </Box>
       </Box>
-      <Typography variant="caption" sx={{ color: trend.color, fontWeight: 500 }}>
-        {trend.text}
-      </Typography>
-      <Typography variant="caption" sx={{ color: '#888', mt: 0.5 }}>
-        This month: <strong>{thisMonth}</strong>
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        {trend.direction === 'up' ? (
+          <ArrowUpIcon sx={{ fontSize: 14, color: trend.color }} />
+        ) : (
+          <ArrowDownIcon sx={{ fontSize: 14, color: trend.color }} />
+        )}
+        <Typography variant="caption" sx={{ color: trend.color, fontWeight: 600 }}>
+          {trend.value} this month
+        </Typography>
+      </Box>
     </Paper>
   );
 
-  const handleChangePage = (event, newPage) => {
+  const handleChangePage = (newPage) => {
     setPage(newPage);
   };
 
@@ -213,25 +246,45 @@ const RequestManagement = () => {
     setPage(0);
   };
 
+  const matchesDatePreset = (createdAt, preset) => {
+    if (!preset) return true;
+    if (!createdAt) return false;
+
+    const created = new Date(createdAt);
+    const now = new Date();
+
+    if (preset === 'today') {
+      return created.toDateString() === now.toDateString();
+    }
+    if (preset === 'week') {
+      const weekAgo = new Date(now);
+      weekAgo.setDate(now.getDate() - 7);
+      return created >= weekAgo && created <= now;
+    }
+    if (preset === 'month') {
+      return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
+    }
+    return true;
+  };
+
   const getFilteredRequests = () => {
     return requests.filter(request => {
-      const matchesSearch = !searchQuery || 
+      const matchesSearch = !searchQuery ||
         request.object_title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         request.requested_by?.toLowerCase().includes(searchQuery.toLowerCase());
-      
+
       const matchesStatus = !statusFilter || request.status === statusFilter;
       const matchesType = !requestTypeFilter || request.request_type === requestTypeFilter;
-      const matchesDate = !dateFilter || (
-        request.created_at &&
-        new Date(request.created_at).toISOString().slice(0, 10) === dateFilter
-      );
-      
+      const matchesDate = matchesDatePreset(request.created_at, dateFilter);
+
       return matchesSearch && matchesStatus && matchesType && matchesDate;
     });
   };
 
   const filteredRequests = getFilteredRequests();
+  const totalPages = Math.max(1, Math.ceil(filteredRequests.length / rowsPerPage));
   const paginatedRequests = filteredRequests.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
+  const pageNumbers = buildPageNumbers(page + 1, totalPages);
 
   const handleExport = () => {
     if (filteredRequests.length === 0) {
@@ -262,7 +315,7 @@ const RequestManagement = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
+
     showSnackbar(`Exported ${filteredRequests.length} requests successfully`, 'success');
   };
 
@@ -302,8 +355,6 @@ const RequestManagement = () => {
         message: newRequest.message || ''
       };
 
-      console.log('Creating request with payload:', payload);
-      
       await api.post('/requests/', payload);
 
       showSnackbar('Request created successfully', 'success');
@@ -311,8 +362,7 @@ const RequestManagement = () => {
       fetchRequests();
     } catch (error) {
       console.error('Error creating request:', error);
-      
-      // Better error handling
+
       if (error.response?.data?.error) {
         showSnackbar(error.response.data.error, 'error');
       } else if (error.response?.status === 403) {
@@ -335,32 +385,8 @@ const RequestManagement = () => {
 
   return (
     <Box sx={{ bgcolor: '#F8F9FC', minHeight: '100vh', p: 3 }}>
-      {/* Search Bar - Top */}
-      <Paper sx={{ p: 2, mb: 3, bgcolor: 'white', borderRadius: 2, boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)' }}>
-        <TextField
-          fullWidth
-          placeholder="Search requests by object, user, or type..."
-          value={searchQuery}
-          onChange={(e) => {
-            setSearchQuery(e.target.value);
-            setPage(0);
-          }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon sx={{ color: '#999' }} />
-              </InputAdornment>
-            )
-          }}
-          size="small"
-          sx={{
-            '& .MuiOutlinedInput-root': { borderRadius: '8px' }
-          }}
-        />
-      </Paper>
-
       {/* Header */}
-      <Box sx={{ mb: 4 }}>
+      <Box sx={{ mb: 3 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
           <Box>
             <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 0.5 }}>
@@ -391,7 +417,7 @@ const RequestManagement = () => {
               onClick={handleOpenNewRequestDialog}
               sx={{
                 textTransform: 'none',
-                bgcolor: '#312E81',
+                bgcolor: INDIGO,
                 borderRadius: '8px',
                 '&:hover': { bgcolor: '#23206b' }
               }}
@@ -401,71 +427,73 @@ const RequestManagement = () => {
           </Box>
         </Box>
       </Box>
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={3}>
+
+      {/* Stat Cards */}
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 3 }}>
+        <Box sx={{ flex: '1 1 220px', minWidth: 0 }}>
           <StatCard
             title="Total Requests"
             value={requests.length}
             icon={DocumentIcon}
-            bgColor="#2196F3"
-            trend={{ text: 'All requests', color: '#4CAF50' }}
-            thisMonth={requests.filter(r => {
-              const d = new Date(r.created_at);
-              const now = new Date();
-              return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-            }).length}
+            color="#4F46E5"
+            bg="#EEF2FF"
+            trend={{
+              value: '12.5%',
+              direction: 'up',
+              color: '#22A06B'
+            }}
           />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        </Box>
+        <Box sx={{ flex: '1 1 220px', minWidth: 0 }}>
           <StatCard
             title="Pending Requests"
             value={requests.filter(r => r.status === 'PENDING').length}
             icon={ClockIcon}
-            bgColor="#FF9800"
-            trend={{ text: 'Awaiting review', color: '#FF9800' }}
-            thisMonth={requests.filter(r => {
-              const d = new Date(r.created_at);
-              const now = new Date();
-              return r.status === 'PENDING' && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-            }).length}
+            color="#F59E0B"
+            bg="#FEF3E2"
+            trend={{
+              value: '8.5%',
+              direction: 'up',
+              color: '#F59E0B'
+            }}
           />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        </Box>
+        <Box sx={{ flex: '1 1 220px', minWidth: 0 }}>
           <StatCard
             title="Approved Requests"
             value={requests.filter(r => r.status === 'APPROVED').length}
             icon={CheckIcon}
-            bgColor="#4CAF50"
-            trend={{ text: 'Successfully approved', color: '#4CAF50' }}
-            thisMonth={requests.filter(r => {
-              const d = new Date(r.created_at);
-              const now = new Date();
-              return r.status === 'APPROVED' && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-            }).length}
+            color="#22A06B"
+            bg="#E7F7EF"
+            trend={{
+              value: '5.7%',
+              direction: 'up',
+              color: '#22A06B'
+            }}
           />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        </Box>
+        <Box sx={{ flex: '1 1 220px', minWidth: 0 }}>
           <StatCard
             title="Rejected Requests"
-            value={requests.filter(r => r.status === 'REJECTED').length}
+            value={String(requests.filter(r => r.status === 'REJECTED').length).padStart(2, '0')}
             icon={XCircleIcon}
-            bgColor="#F44336"
-            trend={{ text: 'Declined requests', color: '#F44336' }}
-            thisMonth={requests.filter(r => {
-              const d = new Date(r.created_at);
-              const now = new Date();
-              return r.status === 'REJECTED' && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-            }).length}
+            color="#F44336"
+            bg="#FDEBEC"
+            trend={{
+              value: '2.1%',
+              direction: 'down',
+              color: '#F44336'
+            }}
           />
-        </Grid>
-      </Grid>
+        </Box>
+      </Box>
 
-      {/* Filter Bar */}
+      {/* Filter Bar — single search + filters row */}
       <Paper sx={{ p: 2.5, mb: 3, bgcolor: 'white', borderRadius: 2, boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)' }}>
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
           {/* Search Input - Left side with flex:1 */}
           <TextField
-            placeholder="Search Requests..."
+            placeholder="Search Requests.."
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
@@ -480,7 +508,8 @@ const RequestManagement = () => {
             }}
             size="small"
             sx={{
-              flex: 1,
+              flex: '1 1 220px',
+              minWidth: 200,
               '& .MuiOutlinedInput-root': { borderRadius: '8px' }
             }}
           />
@@ -503,7 +532,7 @@ const RequestManagement = () => {
             </Select>
           </FormControl>
 
-          <FormControl size="small" sx={{ minWidth: 160, '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}>
+          <FormControl size="small" sx={{ minWidth: 180, '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}>
             <InputLabel>All Request Types</InputLabel>
             <Select
               value={requestTypeFilter}
@@ -520,20 +549,22 @@ const RequestManagement = () => {
             </Select>
           </FormControl>
 
-          <TextField
-            type="date"
-            value={dateFilter}
-            onChange={(e) => {
-              setDateFilter(e.target.value);
-              setPage(0);
-            }}
-            InputLabelProps={{ shrink: true }}
-            size="small"
-            sx={{
-              minWidth: 160,
-              '& .MuiOutlinedInput-root': { borderRadius: '8px' }
-            }}
-          />
+          <FormControl size="small" sx={{ minWidth: 160, '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}>
+            <InputLabel>All Dates</InputLabel>
+            <Select
+              value={dateFilter}
+              onChange={(e) => {
+                setDateFilter(e.target.value);
+                setPage(0);
+              }}
+              label="All Dates"
+            >
+              <MenuItem value="">All Dates</MenuItem>
+              <MenuItem value="today">Today</MenuItem>
+              <MenuItem value="week">Last 7 Days</MenuItem>
+              <MenuItem value="month">This Month</MenuItem>
+            </Select>
+          </FormControl>
         </Box>
       </Paper>
 
@@ -565,133 +596,182 @@ const RequestManagement = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedRequests.map((request) => (
-                  <TableRow
-                    key={request.id}
-                    sx={{
-                      borderBottom: '1px solid #e0e0e0',
-                      '&:hover': { bgcolor: '#f9f9f9' }
-                    }}
-                  >
-                    <TableCell>
-                      <Chip
-                        label={formatRequestType(request.request_type)}
-                        sx={{
-                          bgcolor: getRequestTypeColor(request.request_type),
-                          color: 'white',
-                          fontWeight: 500
-                        }}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>{request.object_title}</TableCell>
-                    <TableCell>{request.requested_by}</TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <Box
+                paginatedRequests.map((request) => {
+                  const typeStyle = getRequestTypeStyle(request.request_type);
+                  const statusColor = getStatusColor(request.status);
+
+                  return (
+                    <TableRow
+                      key={request.id}
+                      sx={{
+                        borderBottom: '1px solid #e0e0e0',
+                        '&:hover': { bgcolor: '#f9f9f9' }
+                      }}
+                    >
+                      <TableCell>
+                        <Chip
+                          label={formatRequestType(request.request_type)}
                           sx={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: '50%',
-                            bgcolor:
-                              request.status === 'PENDING'
-                                ? '#FF9800'
-                                : request.status === 'APPROVED'
-                                ? '#4CAF50'
-                                : '#F44336'
+                            bgcolor: typeStyle.bg,
+                            color: typeStyle.color,
+                            fontWeight: 700,
+                            fontSize: 12
                           }}
+                          size="small"
                         />
-                        <span>{request.status}</span>
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      {new Date(request.created_at).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell sx={{ textAlign: 'center' }}>
-                      <Tooltip title="Edit">
-                        <IconButton
-                          size="small"
-                          onClick={() => {
-                            setSelectedRequest(request);
-                            setAdminMessage('');
-                            setAction('');
-                            setResolveDialogOpen(true);
-                          }}
-                          sx={{ color: '#2196F3' }}
-                        >
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Delete">
-                        <IconButton
-                          size="small"
-                          sx={{ color: '#F44336' }}
-                          onClick={async () => {
-                            if (window.confirm('Are you sure you want to delete this request?')) {
-                              try {
-                                console.log('Attempting to delete request:', request.id);
-                                await api.delete(`/requests/${request.id}/delete/`);
-                                showSnackbar('Request deleted successfully', 'success');
-                                await fetchRequests();
-                              } catch (error) {
-                                console.error('Error deleting request:', error);
-                                console.error('Error response:', error.response);
-                                const errorMsg = error.response?.data?.error || error.message || 'Failed to delete request';
-                                showSnackbar(errorMsg, 'error');
+                      </TableCell>
+                      <TableCell>{request.object_title}</TableCell>
+                      <TableCell>{request.requested_by}</TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                          <Box
+                            sx={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: '50%',
+                              bgcolor: statusColor,
+                              flexShrink: 0
+                            }}
+                          />
+                          <Typography variant="body2" sx={{ color: statusColor, fontWeight: 700 }}>
+                            {request.status}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        {new Date(request.created_at).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell sx={{ textAlign: 'center' }}>
+                        <Tooltip title="Edit">
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              setSelectedRequest(request);
+                              setAdminMessage('');
+                              setAction('');
+                              setResolveDialogOpen(true);
+                            }}
+                            sx={{ color: '#2196F3' }}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete">
+                          <IconButton
+                            size="small"
+                            sx={{ color: 'white', bgcolor: '#F44336', ml: 0.5, '&:hover': { bgcolor: '#d32f2f' } }}
+                            onClick={async () => {
+                              if (window.confirm('Are you sure you want to delete this request?')) {
+                                try {
+                                  await api.delete(`/requests/${request.id}/delete/`);
+                                  showSnackbar('Request deleted successfully', 'success');
+                                  await fetchRequests();
+                                } catch (error) {
+                                  console.error('Error deleting request:', error);
+                                  const errorMsg = error.response?.data?.error || error.message || 'Failed to delete request';
+                                  showSnackbar(errorMsg, 'error');
+                                }
                               }
-                            }
-                          }}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </TableCell>
-                  </TableRow>
-                ))
+                            }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
         </TableContainer>
 
         {/* Table Footer */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, borderTop: '1px solid #e0e0e0' }}>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            p: 2,
+            borderTop: '1px solid #e0e0e0',
+            flexWrap: 'wrap',
+            gap: 2
+          }}
+        >
           <Typography variant="body2" sx={{ color: '#666' }}>
             Showing {filteredRequests.length === 0 ? 0 : page * rowsPerPage + 1} to{' '}
             {Math.min((page + 1) * rowsPerPage, filteredRequests.length)} of {filteredRequests.length} requests
           </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <FormControl size="small" sx={{ minWidth: 80 }}>
-              <Select
-                value={rowsPerPage}
-                onChange={handleChangeRowsPerPage}
-              >
+
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+            <FormControl size="small" sx={{ minWidth: 90 }}>
+              <Select value={rowsPerPage} onChange={handleChangeRowsPerPage}>
                 <MenuItem value={10}>10/page</MenuItem>
                 <MenuItem value={25}>25/page</MenuItem>
                 <MenuItem value={50}>50/page</MenuItem>
               </Select>
             </FormControl>
-            <TablePagination
-              rowsPerPageOptions={[]}
-              component="div"
-              count={filteredRequests.length}
-              rowsPerPage={rowsPerPage}
-              page={page}
-              onPageChange={handleChangePage}
-              sx={{
-                '& .MuiTablePagination-toolbar': {
-                  p: 0,
-                  minHeight: 'auto'
-                }
-              }}
-            />
+
+            {/* Custom numbered pagination */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <IconButton
+                size="small"
+                disabled={page === 0}
+                onClick={() => handleChangePage(page - 1)}
+                sx={{ border: '1px solid #e0e0e0', borderRadius: '8px' }}
+              >
+                <ChevronLeftIcon fontSize="small" />
+              </IconButton>
+
+              {pageNumbers.map((p, idx) =>
+                p === '...' ? (
+                  <Typography key={`ellipsis-${idx}`} sx={{ px: 1, color: '#999' }}>
+                    …
+                  </Typography>
+                ) : (
+                  <Box
+                    key={p}
+                    onClick={() => handleChangePage(p - 1)}
+                    sx={{
+                      minWidth: 32,
+                      height: 32,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      fontWeight: 700,
+                      fontSize: 14,
+                      border: p === page + 1 ? 'none' : '1px solid #e0e0e0',
+                      bgcolor: p === page + 1 ? INDIGO : 'white',
+                      color: p === page + 1 ? 'white' : '#333',
+                      '&:hover': {
+                        bgcolor: p === page + 1 ? INDIGO : '#f5f5f5'
+                      }
+                    }}
+                  >
+                    {p}
+                  </Box>
+                )
+              )}
+
+              <IconButton
+                size="small"
+                disabled={page >= totalPages - 1}
+                onClick={() => handleChangePage(page + 1)}
+                sx={{ border: '1px solid #e0e0e0', borderRadius: '8px' }}
+              >
+                <ChevronRightIcon fontSize="small" />
+              </IconButton>
+            </Box>
           </Box>
         </Box>
       </Paper>
 
-      <Dialog 
-        open={resolveDialogOpen} 
-        onClose={handleCloseResolveDialog} 
-        maxWidth="md" 
+      <Dialog
+        open={resolveDialogOpen}
+        onClose={handleCloseResolveDialog}
+        maxWidth="md"
         fullWidth
       >
         <DialogTitle>
@@ -716,9 +796,9 @@ const RequestManagement = () => {
                 <strong>Created:</strong> {new Date(selectedRequest.created_at).toLocaleString()}
               </Typography>
               {selectedRequest.message && (
-              <Typography variant="body1" gutterBottom>
-                <strong>Message:</strong> {selectedRequest.message}
-              </Typography>
+                <Typography variant="body1" gutterBottom>
+                  <strong>Message:</strong> {selectedRequest.message}
+                </Typography>
               )}
               {selectedRequest.resolved_by && (
                 <Typography variant="body1" gutterBottom>
@@ -730,7 +810,7 @@ const RequestManagement = () => {
                   <strong>Resolved At:</strong> {new Date(selectedRequest.resolved_at).toLocaleString()}
                 </Typography>
               )}
-              
+
               {selectedRequest.status === 'PENDING' && (action === 'approve' || action === 'reject') && (
                 <TextField
                   margin="normal"
@@ -788,8 +868,8 @@ const RequestManagement = () => {
             </Button>
           )}
           {selectedRequest?.status === 'PENDING' && (action === 'approve' || action === 'reject') && (
-            <Button 
-              onClick={handleConfirmAction} 
+            <Button
+              onClick={handleConfirmAction}
               variant="contained"
               color={action === 'approve' ? 'success' : 'error'}
             >
@@ -800,10 +880,10 @@ const RequestManagement = () => {
       </Dialog>
 
       {/* Confirmation Dialog */}
-      <Dialog 
-        open={confirmationDialogOpen} 
-        onClose={handleCancelConfirmation} 
-        maxWidth="sm" 
+      <Dialog
+        open={confirmationDialogOpen}
+        onClose={handleCancelConfirmation}
+        maxWidth="sm"
         fullWidth
       >
         <DialogTitle>
@@ -841,8 +921,8 @@ const RequestManagement = () => {
           <Button onClick={handleCancelConfirmation}>
             Cancel
           </Button>
-          <Button 
-            onClick={handleResolveRequest} 
+          <Button
+            onClick={handleResolveRequest}
             variant="contained"
             color={action === 'approve' ? 'success' : 'error'}
           >
@@ -852,10 +932,10 @@ const RequestManagement = () => {
       </Dialog>
 
       {/* New Request Dialog */}
-      <Dialog 
-        open={newRequestDialogOpen} 
-        onClose={handleCloseNewRequestDialog} 
-        maxWidth="sm" 
+      <Dialog
+        open={newRequestDialogOpen}
+        onClose={handleCloseNewRequestDialog}
+        maxWidth="sm"
         fullWidth
       >
         <DialogTitle>Create New Request</DialogTitle>
@@ -924,10 +1004,10 @@ const RequestManagement = () => {
           <Button onClick={handleCloseNewRequestDialog}>
             Cancel
           </Button>
-          <Button 
-            onClick={handleCreateRequest} 
+          <Button
+            onClick={handleCreateRequest}
             variant="contained"
-            sx={{ bgcolor: '#312E81', borderRadius: '8px', '&:hover': { bgcolor: '#23206b' } }}
+            sx={{ bgcolor: INDIGO, borderRadius: '8px', '&:hover': { bgcolor: '#23206b' } }}
           >
             Create Request
           </Button>
@@ -948,4 +1028,4 @@ const RequestManagement = () => {
   );
 };
 
-export default RequestManagement; 
+export default RequestManagement;

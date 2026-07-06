@@ -5,6 +5,7 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
 
+from django.urls import path, include
 from lms_backend.views import upload_certificate_template
 from rest_framework.permissions import AllowAny
 from rest_framework.routers import DefaultRouter
@@ -99,6 +100,11 @@ urlpatterns = [
         'api/token/refresh/',
         csrf_exempt(TokenRefreshView.as_view(permission_classes=[AllowAny])),
         name='token_refresh'
+    ),
+
+    path(
+        "api/assistant/",
+        include("ai_assistant.urls")
     ),
 
     path('api/analytics/users/<int:user_id>/', UserAnalyticsView.as_view(), name='user-analytics'),

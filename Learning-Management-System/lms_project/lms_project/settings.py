@@ -5,8 +5,12 @@ from pathlib import Path
 from datetime import timedelta
 from urllib.parse import urlparse
 
-from decouple import config
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
+from decouple import config
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 BASE_DIR = Path(__file__).resolve().parent.parent
 IS_TESTING = 'test' in sys.argv
 
@@ -88,6 +92,8 @@ INSTALLED_APPS = [
 
     # local
     'lms_backend',
+
+    "ai_assistant",
 ]
 
 MIDDLEWARE = [
