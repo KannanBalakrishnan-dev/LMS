@@ -37,14 +37,50 @@ urlpatterns = [
 
     # =====================
     # Router APIs
-    path('api/', include(router.urls)),
+    # =====================
 
-    # Authentication APIs
-   path('send-otp/', send_otp)
-path('verify-otp/', verify_otp_view)
-path('google-login/', google_login)
+    path(
+        'api/',
+        include(router.urls)
+    ),
 
-    # Certificate APIs
+
+    # =====================
+    # Gemini AI Assistant
+    # =====================
+
+    path(
+        'api/ai/chat/',
+        ai_chat,
+        name='ai-chat'
+    ),
+
+
+    # =====================
+    # Authentication
+    # =====================
+
+    path(
+        'send-otp/',
+        send_otp
+    ),
+
+    path(
+        'verify-otp/',
+        verify_otp_view
+    ),
+
+    path(
+        'google-login/',
+        google_login
+    ),
+
+
+
+    # =====================
+    # Certificate
+    # =====================
+
     path(
         'api/courses/<int:course_id>/download_certificate/',
         views.download_certificate,
