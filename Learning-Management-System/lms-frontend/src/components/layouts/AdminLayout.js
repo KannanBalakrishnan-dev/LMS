@@ -15,6 +15,7 @@ import {
   Avatar,
   Menu,
   MenuItem,
+  Divider,
   CssBaseline,
   Badge,
   Tooltip,
@@ -36,6 +37,8 @@ import {
   AutoStories,
   DarkMode as DarkModeIcon,
   LightMode as LightModeIcon,
+  Person as PersonIcon,
+  Logout as LogoutIcon,
   // HelpOutline as HelpOutlineIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
@@ -51,6 +54,9 @@ const NAV_TEXT = '#1c2061';
 const NAV_ICON = '#1c2061';
 const NAV_HOVER_BG = '#f1f0fb';
 const NAV_SECTION_LABEL = '#9ca3af';
+
+// ---- Path to the profile page. ----
+const PROFILE_PATH = '/admin/UserProfile';
 
 // ---- motion-wrapped MUI primitives ----
 const MotionListItemButton = motion(ListItemButton);
@@ -101,6 +107,12 @@ const AdminLayout = () => {
   const handleDrawerToggle = () => setDrawerOpen((prev) => !prev);
   const handleLogout = () => { logout(); navigate('/login'); };
   const handleToggleDarkMode = () => setDarkMode((prev) => !prev);
+
+  // Navigate to the profile page and close whichever menu triggered it.
+  const handleGoToProfile = () => {
+    setAnchorEl(null);
+    navigate(PROFILE_PATH);
+  };
 
   const fetchNotifications = async () => {
     try {
@@ -361,7 +373,7 @@ const AdminLayout = () => {
                 </Badge>
               </motion.div>
             </IconButton>
-            {/* Profile Avatar */}
+            {/* Profile Avatar — opens the profile menu (click "My Profile" to navigate) */}
             <IconButton onClick={(e) => setAnchorEl(e.currentTarget)}>
               <motion.div whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }}>
                 <Avatar sx={{ bgcolor: NAV_ACTIVE_BG, width: 36, height: 36, fontSize: '0.9rem' }}>
@@ -493,7 +505,7 @@ const AdminLayout = () => {
           ))}
         </MotionBox>
 
-        {/* User profile at bottom */}
+        {/* User profile at bottom — clicking navigates straight to the profile page */}
         {expanded && (
           <Box
             sx={{
@@ -507,7 +519,7 @@ const AdminLayout = () => {
               backgroundColor: '#ffffff',
               '&:hover': { backgroundColor: NAV_HOVER_BG },
             }}
-            onClick={(e) => setAnchorEl(e.currentTarget)}
+            onClick={handleGoToProfile}
           >
             <Avatar sx={{ bgcolor: NAV_ACTIVE_BG, width: 36, height: 36, fontSize: '0.9rem', flexShrink: 0 }}>
               {user?.username?.[0]?.toUpperCase() || 'A'}
@@ -551,12 +563,24 @@ const AdminLayout = () => {
         </Box>
       </Box>
 
-      {/* Profile Menu */}
+      {/* Profile Menu — top navbar avatar */}
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
         <MenuItem disabled>
           <Typography variant="subtitle1">{user?.username || 'Admin'}</Typography>
         </MenuItem>
-        <MenuItem onClick={handleLogout}>Logout</MenuItem>
+        <Divider />
+        <MenuItem onClick={handleGoToProfile}>
+          <ListItemIcon>
+            <PersonIcon fontSize="small" />
+          </ListItemIcon>
+          My Profile
+        </MenuItem>
+        <MenuItem onClick={handleLogout}>
+          <ListItemIcon>
+            <LogoutIcon fontSize="small" />
+          </ListItemIcon>
+          Logout
+        </MenuItem>
       </Menu>
 
       {/* Notification Dropdown */}

@@ -29,12 +29,14 @@ import CourseManagement from './pages/admin/CourseManagement';
 import CategoryManagement from './pages/admin/CategoryManagement';
 import TeamManagement from './pages/admin/TeamManagement';
 import AdminAnalytics from './pages/admin/Analytics';
+import UserProfile from './pages/admin/UserProfile';
 
 import CertificateTemplateUpload from './pages/admin/CertificateTemplateUpload';
 import RequestManagement from './pages/admin/RequestManagement';
 import DeletedActions from './pages/admin/DeletedActions';
 import FeedbackManagement from './pages/admin/FeedbackManagement';
 import HelpCenter from './pages/admin/Helpcenter';
+
 
 
 // Student Pages
@@ -132,6 +134,7 @@ function AppContent() {
                                 <Route path="categories" element={<CategoryManagement />} />
                                 <Route path="teams" element={<TeamManagement />} />
                                 <Route path="analytics" element={<AdminAnalytics />} />
+                                <Route path="userprofile" element={<UserProfile />} />
                                 <Route path="certificates" element={<CertificateTemplateUpload />} />
                                 <Route path="CertificateTemplateUpload" element={<CertificateTemplateUpload />} />
                                 <Route path="requests" element={<RequestManagement />} />

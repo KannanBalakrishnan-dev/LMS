@@ -102,6 +102,9 @@ urlpatterns = [
     ),
 
 
+# urls.py
+path('admin/profile/', views.admin_profile, name='admin-profile'),
+
 
     # =====================
     # Requests
