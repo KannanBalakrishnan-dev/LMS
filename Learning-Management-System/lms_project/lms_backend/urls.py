@@ -39,13 +39,6 @@ urlpatterns = [
     # Router APIs
     # =====================
 
-<<<<<<< HEAD
-    # Authentication APIs
-    path('api/send-otp/', send_otp, name='send-otp'),
-    path('api/verify-otp/', verify_otp_view, name='verify-otp'),
-    path('api/google-login/', google_login, name='google-login'),
-    path('api/generate-otp/', views.generate_otp, name='generate-otp'),
-=======
     path(
         'api/',
         include(router.urls)
@@ -87,7 +80,6 @@ urlpatterns = [
     # =====================
     # Certificate
     # =====================
->>>>>>> 086ba295c6cd3bfbfbdd75b415e9077bc663cfb1
 
     path(
         'api/courses/<int:course_id>/download_certificate/',
