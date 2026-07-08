@@ -33,7 +33,7 @@ import {
   History,
   Feedback,
   WorkspacePremium,
-  KeyboardArrowDown,
+  // KeyboardArrowDown,
   AutoStories,
   DarkMode as DarkModeIcon,
   LightMode as LightModeIcon,
@@ -506,35 +506,48 @@ const AdminLayout = () => {
         </MotionBox>
 
         {/* User profile at bottom — clicking navigates straight to the profile page */}
-        {expanded && (
-          <Box
-            sx={{
-              px: 2,
-              py: 1.75,
-              borderTop: '1px solid #eef0f5',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1.5,
-              cursor: 'pointer',
-              backgroundColor: '#ffffff',
-              '&:hover': { backgroundColor: NAV_HOVER_BG },
-            }}
-            onClick={handleGoToProfile}
-          >
-            <Avatar sx={{ bgcolor: NAV_ACTIVE_BG, width: 36, height: 36, fontSize: '0.9rem', flexShrink: 0 }}>
-              {user?.username?.[0]?.toUpperCase() || 'A'}
-            </Avatar>
-            <Box sx={{ minWidth: 0, flex: 1 }}>
-              <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#111827', lineHeight: 1.3 }} noWrap>
-                {user?.username || 'Admin'}
-              </Typography>
-              <Typography sx={{ fontSize: '0.75rem', color: '#6b7280', lineHeight: 1.3 }} noWrap>
-                {user?.user_type === 'ADMIN' ? 'Admin' : 'Manager'}
-              </Typography>
-            </Box>
-            <KeyboardArrowDown sx={{ color: '#9ca3af', fontSize: 18, flexShrink: 0 }} />
-          </Box>
-        )}
+        {/* Logout Button */}
+<Box
+  sx={{
+    p: 2,
+    borderTop: '1px solid #eef0f5',
+    backgroundColor: '#ffffff',
+  }}
+>
+  <ListItemButton
+    onClick={handleLogout}
+    sx={{
+      borderRadius: '12px',
+      py: 1.2,
+      justifyContent: expanded ? 'flex-start' : 'center',
+      '&:hover': {
+        backgroundColor: '#fee2e2',
+        color: '#dc2626',
+      },
+    }}
+  >
+    <ListItemIcon
+      sx={{
+        minWidth: 0,
+        mr: expanded ? 1.5 : 0,
+        justifyContent: 'center',
+        color: '#dc2626',
+      }}
+    >
+      <LogoutIcon />
+    </ListItemIcon>
+
+    {expanded && (
+      <ListItemText
+        primary="Logout"
+        primaryTypographyProps={{
+          fontWeight: 600,
+          color: '#dc2626',
+        }}
+      />
+    )}
+  </ListItemButton>
+</Box>
       </Drawer>
 
       {/* Main content */}

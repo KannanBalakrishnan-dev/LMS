@@ -16,6 +16,7 @@ import {
 } from '@mui/material';
 import {
     Add,
+    ArrowForward,
     CallOutlined,
     Facebook,
     Instagram,
@@ -27,7 +28,6 @@ import {
     Remove,
     YouTube,
 } from '@mui/icons-material';
-import heroIllustration from '../assets/Group 2621.png';
 import phoneFrame from '../assets/Group 2659.png';
 import aboutImage from '../assets/unsplash_vbxyFxlgpjM.png';
 import courseAnalyticsImage from '../assets/pexels-olya-kobruseva-5561923 1 - Copy.png';
@@ -76,6 +76,17 @@ const colors = {
     yellow: '#efc95d',
     border: 'rgba(18, 18, 18, 0.12)',
     faqBlue: 'rgb(56, 43, 232)',
+    // Hero — new color combo (indigo → violet, warm accent)
+    heroBg: '#F5F4FF',
+    heroBadgeBg: 'rgba(108, 71, 255, 0.10)',
+    heroBadgeText: '#6C47FF',
+    heroBadgeDot: '#6C47FF',
+    heroSubtitle: '#5B5B6B',
+    heroDark: '#1B1230',
+    heroAccentGrad: 'linear-gradient(90deg, #6C47FF 0%, #A855F7 100%)',
+    heroBlob1: 'rgba(108, 71, 255, 0.18)',
+    heroBlob2: 'rgba(255, 176, 82, 0.20)',
+    heroPanelBorder: 'rgba(108, 71, 255, 0.14)',
 };
 
 const fontFamily = '"Poppins","Inter", "Segoe UI", sans-serif';
@@ -464,74 +475,187 @@ export default function Home() {
 
                 <Box
                     sx={{
-                        backgroundColor: colors.navy,
+                        backgroundColor: colors.heroBg,
                         px: pageGutter,
                         pt: {
-                            xs: `calc(${PUBLIC_SITE_HEADER_HEIGHT}px + 18px)`,
-                            md: `calc(${PUBLIC_SITE_HEADER_HEIGHT}px + 44px)`,
+                            xs: `calc(${PUBLIC_SITE_HEADER_HEIGHT}px + 32px)`,
+                            md: `calc(${PUBLIC_SITE_HEADER_HEIGHT}px + 56px)`,
                         },
-                        pb: { xs: 6, md: '92px' },
+                        pb: { xs: 6, md: '96px' },
+                        position: 'relative',
+                        overflow: 'hidden',
+                        '@keyframes heroFadeUp': {
+                            '0%': { opacity: 0, transform: 'translateY(24px)' },
+                            '100%': { opacity: 1, transform: 'translateY(0)' },
+                        },
+                        '@keyframes heroFloat': {
+                            '0%': { transform: 'translateY(0px)' },
+                            '50%': { transform: 'translateY(-14px)' },
+                            '100%': { transform: 'translateY(0px)' },
+                        },
+                        '@keyframes blobDrift1': {
+                            '0%': { transform: 'translate(0px, 0px) scale(1)' },
+                            '50%': { transform: 'translate(30px, -20px) scale(1.08)' },
+                            '100%': { transform: 'translate(0px, 0px) scale(1)' },
+                        },
+                        '@keyframes blobDrift2': {
+                            '0%': { transform: 'translate(0px, 0px) scale(1)' },
+                            '50%': { transform: 'translate(-24px, 18px) scale(1.06)' },
+                            '100%': { transform: 'translate(0px, 0px) scale(1)' },
+                        },
+                        '@keyframes badgeDotPulse': {
+                            '0%': { boxShadow: `0 0 0 0 ${colors.heroBadgeDot}55` },
+                            '70%': { boxShadow: '0 0 0 8px rgba(108, 71, 255, 0)' },
+                            '100%': { boxShadow: '0 0 0 0 rgba(108, 71, 255, 0)' },
+                        },
                     }}
                 >
+                    {/* Animated background blobs */}
+                    <Box
+                        sx={{
+                            position: 'absolute',
+                            top: -60,
+                            left: -80,
+                            width: 320,
+                            height: 320,
+                            borderRadius: '50%',
+                            background: colors.heroBlob1,
+                            filter: 'blur(70px)',
+                            animation: 'blobDrift1 9s ease-in-out infinite',
+                            zIndex: 0,
+                        }}
+                    />
+                    <Box
+                        sx={{
+                            position: 'absolute',
+                            bottom: -80,
+                            right: -60,
+                            width: 280,
+                            height: 280,
+                            borderRadius: '50%',
+                            background: colors.heroBlob2,
+                            filter: 'blur(70px)',
+                            animation: 'blobDrift2 11s ease-in-out infinite',
+                            zIndex: 0,
+                        }}
+                    />
+
                     <Stack
                         direction={{ xs: 'column', lg: 'row' }}
                         justifyContent="space-between"
                         alignItems={{ xs: 'flex-start', lg: 'center' }}
                         spacing={{ xs: 5, lg: 6 }}
-                        sx={{ maxWidth: 1280, mx: 'auto' }}
+                        sx={{ maxWidth: 1280, mx: 'auto', position: 'relative', zIndex: 1 }}
                     >
+                        {/* ---------- LEFT: Text content ---------- */}
                         <Box
                             sx={{
-                                width: { xs: '100%', lg: '52%' },
-                                maxWidth: { lg: 676 },
+                                width: { xs: '100%', lg: '54%' },
+                                maxWidth: { lg: 640 },
                                 display: 'flex',
                                 flexDirection: 'column',
                                 alignItems: 'flex-start',
                             }}
                         >
+                            {/* Badge */}
+                            <Box
+                                sx={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 1,
+                                    px: 2,
+                                    py: 0.7,
+                                    borderRadius: '999px',
+                                    backgroundColor: colors.heroBadgeBg,
+                                    mb: 3,
+                                    opacity: 0,
+                                    animation: 'heroFadeUp 0.7s ease-out 0.05s forwards',
+                                }}
+                            >
+                                <Box
+                                    sx={{
+                                        width: 7,
+                                        height: 7,
+                                        borderRadius: '50%',
+                                        backgroundColor: colors.heroBadgeDot,
+                                        animation: 'badgeDotPulse 2s ease-out infinite',
+                                    }}
+                                />
+                                <Typography
+                                    sx={{
+                                        fontSize: '12px',
+                                        fontWeight: 700,
+                                        letterSpacing: '1.2px',
+                                        color: colors.heroBadgeText,
+                                        textTransform: 'uppercase',
+                                    }}
+                                >
+                                    World-Class Professional Education
+                                </Typography>
+                            </Box>
+
+                            {/* Heading */}
                             <Typography
                                 sx={{
-                                    color: colors.white,
-                                    fontWeight: 500,
-                                    fontFamily: '"Proxima Nova", "Poppins", sans-serif',
-                                    fontSize: { xs: '2.2rem', sm: '2.8rem', md:'3.8rem', lg: '35px' },
-                                    lineHeight: { xs: 1.2, lg: '55px' },
-                                    letterSpacing: '0.2',
-                                    width: '100%',
+                                    fontWeight: 700,
+                                    fontFamily: '"Poppins", sans-serif',
+                                    fontSize: { xs: '2.4rem', sm: '2.9rem', md: '3.1rem', lg: '3rem' },
+                                    lineHeight: 1.15,
+                                    color: colors.heroDark,
                                     textAlign: 'left',
-                                    mb: 1.5,
+                                    opacity: 0,
+                                    animation: 'heroFadeUp 0.7s ease-out 0.15s forwards',
                                 }}
                             >
                                 Build and Achieve Your Dreams
-                                <br />
-                                With <Box component="span" sx={{ color: colors.yellow }}>VDart Academy</Box>
                             </Typography>
                             <Typography
                                 sx={{
-                                    mt: { xs: 2.5, md: '16px' },
-                                    width: '100%',
-                                    maxWidth: 650,
-                                    color: '#FAFAFA',
-                                    fontFamily: '"Proxima Nova", sans-serif,"Inter"',
-                                    fontWeight: 400,
-                                    fontSize: { xs: '1rem', md: '16px' },
-                                    lineHeight: { xs: 1.8, md: '28px' },
-                                    letterSpacing: '0.4px' ,
-                                    verticalAlign: 'middle',
+                                    fontWeight: 700,
+                                    fontFamily: '"Poppins", sans-serif',
+                                    fontSize: { xs: '2.4rem', sm: '2.9rem', md: '3.1rem', lg: '3rem' },
+                                    lineHeight: 1.15,
+                                    background: colors.heroAccentGrad,
+                                    WebkitBackgroundClip: 'text',
+                                    WebkitTextFillColor: 'transparent',
                                     textAlign: 'left',
-                                    opacity: 0.9,
+                                    opacity: 0,
+                                    animation: 'heroFadeUp 0.7s ease-out 0.25s forwards',
                                 }}
                             >
-                                We provide you with unrestricted access to the greatest courses from the top
-                                specialists, allowing you to learn countless of practical lessons in a range of
-                                topics.
+                                VDart Academy
                             </Typography>
+
+                            {/* Description */}
+                            <Typography
+                                sx={{
+                                    mt: { xs: 2.5, md: 3 },
+                                    width: '100%',
+                                    maxWidth: 500,
+                                    color: colors.heroSubtitle,
+                                    fontFamily: '"Inter", "Proxima Nova", sans-serif',
+                                    fontWeight: 400,
+                                    fontSize: { xs: '1rem', md: '16px' },
+                                    lineHeight: 1.75,
+                                    textAlign: 'left',
+                                    opacity: 0,
+                                    animation: 'heroFadeUp 0.7s ease-out 0.35s forwards',
+                                }}
+                            >
+                                Unlock your potential with a premium gateway to professional mastery.
+                                Master industry-leading skills through structured, high-quality
+                                educational content designed for ambitious professionals.
+                            </Typography>
+
+                            {/* Buttons */}
                             <Stack
                                 direction={{ xs: 'column', sm: 'row' }}
-                                spacing={{ xs: 2.2, sm: '18px' }}
+                                spacing={2}
                                 sx={{
-                                    mt: { xs: 3.4, md: '48px' },
+                                    mt: { xs: 4, md: 5 },
                                     width: '100%',
+                                    opacity: 0,
+                                    animation: 'heroFadeUp 0.7s ease-out 0.45s forwards',
                                 }}
                                 alignItems="center"
                                 justifyContent="flex-start"
@@ -540,52 +664,114 @@ export default function Home() {
                                     component={RouterLink}
                                     to="/courses"
                                     variant="contained"
+                                    endIcon={<ArrowForward sx={{ fontSize: 18 }} />}
                                     sx={{
-                                        width: { xs: '100%', sm: 150 },
-                                        minWidth: { xs: '100%', sm: 150 },
-                                        height: { xs: 52, sm: '60px' },
-                                        borderRadius: '5px',
+                                        width: { xs: '100%', sm: 'auto' },
+                                        px: 3.5,
+                                        height: { xs: 52, sm: 54 },
+                                        borderRadius: '8px',
                                         textTransform: 'none',
-                                        backgroundColor: '#FCD980',
-                                        color: colors.ink,
-                                        boxShadow: 'none',
-                                        fontSize: { xs: '15px', sm: '16px' },
-                                        fontWeight: 500,
-                                        lineHeight: 1,
-                                        '&:hover': { backgroundColor: '#FCD980', boxShadow: 'none' },
+                                        background: colors.heroAccentGrad,
+                                        color: colors.white,
+                                        boxShadow: '0 8px 20px rgba(108, 71, 255, 0.28)',
+                                        fontSize: '15px',
+                                        fontWeight: 600,
+                                        letterSpacing: '0.5px',
+                                        transition: 'transform 0.25s ease, box-shadow 0.25s ease',
+                                        '&:hover': {
+                                            transform: 'translateY(-3px)',
+                                            boxShadow: '0 12px 26px rgba(108, 71, 255, 0.38)',
+                                            background: colors.heroAccentGrad,
+                                        },
                                     }}
                                 >
-                                    View Courses
+                                    VIEW COURSES
+                                </Button>
+                                <Button
+                                    component={RouterLink}
+                                    to="/#features"
+                                    variant="outlined"
+                                    sx={{
+                                        width: { xs: '100%', sm: 'auto' },
+                                        px: 3.5,
+                                        height: { xs: 52, sm: 54 },
+                                        borderRadius: '8px',
+                                        textTransform: 'none',
+                                        borderColor: 'rgba(27,18,48,0.25)',
+                                        color: colors.heroDark,
+                                        fontSize: '15px',
+                                        fontWeight: 600,
+                                        letterSpacing: '0.5px',
+                                        transition: 'transform 0.25s ease, background-color 0.25s ease, border-color 0.25s ease',
+                                        '&:hover': {
+                                            transform: 'translateY(-3px)',
+                                            borderColor: colors.heroBadgeText,
+                                            backgroundColor: 'rgba(108, 71, 255, 0.06)',
+                                        },
+                                    }}
+                                >
+                                    EXPLORE TRACKS
                                 </Button>
                             </Stack>
                         </Box>
 
+                        {/* ---------- RIGHT: Illustration panel ---------- */}
                         <Box
                             sx={{
-                                width: { xs: '100%', sm: '82%', md: '68%', lg: '45%' },
-                                maxWidth: { xs: 360, sm: 460, md: 520, lg: 585.21 },
-                                display: 'flex',
-                                justifyContent: 'center',
-                                flexShrink: 0,
-                                alignSelf: 'center',
-                                px: { xs: 1, sm: 2, md: 3, lg: 0 },
-                                mt: { xs: 1, lg: 0 },
+                                width: { xs: '100%', sm: '70%', md: '55%', lg: '38%' },
+                                maxWidth: 460,
+                                aspectRatio: '1 / 0.85',
+                                borderRadius: '24px',
+                                background: 'linear-gradient(160deg, #FFFFFF 0%, #F0EDFF 100%)',
+                                border: `1px solid ${colors.heroPanelBorder}`,
+                                boxShadow: '0 20px 50px rgba(108, 71, 255, 0.12)',
+                                position: 'relative',
+                                display: 'grid',
+                                placeItems: 'center',
+                                overflow: 'hidden',
+                                mx: 'auto',
+                                opacity: 0,
+                                animation: 'heroFadeUp 0.8s ease-out 0.3s forwards, heroFloat 5s ease-in-out 1.1s infinite',
                             }}
                         >
+                            {/* faint decorative bars mimicking a code/dashboard layout */}
+                            <Box sx={{ position: 'absolute', top: 28, left: 28, right: 28, opacity: 0.6 }}>
+                                <Box sx={{ height: 10, width: '55%', borderRadius: '5px', background: colors.heroAccentGrad, opacity: 0.25, mb: 1.2 }} />
+                                <Box sx={{ height: 10, width: '35%', borderRadius: '5px', backgroundColor: '#E7E2FF' }} />
+                            </Box>
+                            <Box sx={{ position: 'absolute', bottom: 30, left: 28, right: 28, opacity: 0.5 }}>
+                                <Box sx={{ height: 8, width: '80%', borderRadius: '4px', backgroundColor: '#E7E2FF', mb: 1 }} />
+                                <Box sx={{ height: 8, width: '60%', borderRadius: '4px', backgroundColor: '#E7E2FF', mb: 1 }} />
+                                <Box sx={{ height: 8, width: '70%', borderRadius: '4px', backgroundColor: '#F1EEFF' }} />
+                            </Box>
+
+                            {/* central "{}" badge */}
                             <Box
-                                component="img"
-                                src={heroIllustration}
-                                alt="VDart Academy dashboard preview"
                                 sx={{
-                                    width: '100%',
-                                    height: 'auto',
-                                    maxWidth: 585.21,
-                                    maxHeight: { xs: 280, sm: 340, md: 400, lg: 452.08 },
-                                    objectFit: 'contain',
-                                    display: 'block',
-                                    mx: 'auto',
+                                    width: 96,
+                                    height: 96,
+                                    borderRadius: '20px',
+                                    backgroundColor: colors.white,
+                                    boxShadow: '0 12px 30px rgba(108, 71, 255, 0.18)',
+                                    display: 'grid',
+                                    placeItems: 'center',
+                                    zIndex: 1,
                                 }}
-                            />
+                            >
+                                <Typography
+                                    sx={{
+                                        fontFamily: '"Roboto Mono", monospace',
+                                        fontSize: '2.6rem',
+                                        fontWeight: 700,
+                                        background: colors.heroAccentGrad,
+                                        WebkitBackgroundClip: 'text',
+                                        WebkitTextFillColor: 'transparent',
+                                        lineHeight: 1,
+                                    }}
+                                >
+                                    {'{ }'}
+                                </Typography>
+                            </Box>
                         </Box>
                     </Stack>
                 </Box>
@@ -1757,4 +1943,3 @@ export default function Home() {
         </Box>
     );
 }
-
