@@ -37,8 +37,9 @@ import {
   AutoStories,
   DarkMode as DarkModeIcon,
   LightMode as LightModeIcon,
-  Person as PersonIcon,
-  Logout as LogoutIcon,
+   Person as PersonIcon,
+   Logout as LogoutIcon,
+  Settings as SettingsIcon,
   // HelpOutline as HelpOutlineIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
@@ -57,6 +58,7 @@ const NAV_SECTION_LABEL = '#9ca3af';
 
 // ---- Path to the profile page. ----
 const PROFILE_PATH = '/admin/UserProfile';
+const SETTINGS_PATH = '/admin/settings';
 
 // ---- motion-wrapped MUI primitives ----
 const MotionListItemButton = motion(ListItemButton);
@@ -113,6 +115,11 @@ const AdminLayout = () => {
     setAnchorEl(null);
     navigate(PROFILE_PATH);
   };
+
+  const handleGoToSettings = () => {
+  setAnchorEl(null);
+  navigate(SETTINGS_PATH);
+};
 
   const fetchNotifications = async () => {
     try {
@@ -588,12 +595,12 @@ const AdminLayout = () => {
           </ListItemIcon>
           My Profile
         </MenuItem>
-        <MenuItem onClick={handleLogout}>
-          <ListItemIcon>
-            <LogoutIcon fontSize="small" />
-          </ListItemIcon>
-          Logout
-        </MenuItem>
+       <MenuItem onClick={handleGoToSettings}>
+  <ListItemIcon>
+    <SettingsIcon fontSize="small" />
+  </ListItemIcon>
+  Settings
+</MenuItem>
       </Menu>
 
       {/* Notification Dropdown */}

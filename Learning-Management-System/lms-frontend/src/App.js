@@ -30,6 +30,7 @@ import CategoryManagement from './pages/admin/CategoryManagement';
 import TeamManagement from './pages/admin/TeamManagement';
 import AdminAnalytics from './pages/admin/Analytics';
 import UserProfile from './pages/admin/UserProfile';
+import UserSettings from './pages/admin/UserSettings';
 
 import CertificateTemplateUpload from './pages/admin/CertificateTemplateUpload';
 import RequestManagement from './pages/admin/RequestManagement';
@@ -135,6 +136,7 @@ function AppContent() {
                                 <Route path="teams" element={<TeamManagement />} />
                                 <Route path="analytics" element={<AdminAnalytics />} />
                                 <Route path="userprofile" element={<UserProfile />} />
+                                <Route path="settings" element={<UserSettings />} />
                                 <Route path="certificates" element={<CertificateTemplateUpload />} />
                                 <Route path="CertificateTemplateUpload" element={<CertificateTemplateUpload />} />
                                 <Route path="requests" element={<RequestManagement />} />
