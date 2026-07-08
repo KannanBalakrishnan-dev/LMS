@@ -20,7 +20,6 @@ import {
   Switch,
   IconButton,
   Dialog,
-  DialogTitle,
   DialogContent,
   DialogActions,
   InputAdornment,
@@ -40,9 +39,11 @@ import {
   DeleteOutline,
   Visibility,
   VisibilityOff,
+  CheckCircleOutline,
 } from '@mui/icons-material';
 import api from '../../api';
 import { useAuth } from '../../contexts/AuthContext';
+import { AVATAR_UPDATED_EVENT } from '../../components/layouts/AdminLayout';
 
 // ---------------------------------------------------------------------------
 // DEMO MODE — flip this to `true` locally to preview without a live API.
@@ -73,6 +74,13 @@ const DEMO_PROFILE = {
     { id: 2, type: 'team', text: 'Kishore added new team member: Sarah Chen', date: new Date(Date.now() - 864e5).toISOString() },
     { id: 3, type: 'cert', text: 'Kishore approved 5 pending certificates', date: '2024-07-24T11:00:00' },
   ],
+};
+
+// Broadcasts the current avatar URL to the rest of the app (namely the
+// navbar in AdminLayout) so it updates instantly, without a reload or a
+// route change.
+const broadcastAvatarUpdate = (avatarUrl) => {
+  window.dispatchEvent(new CustomEvent(AVATAR_UPDATED_EVENT, { detail: { avatarUrl: avatarUrl || '' } }));
 };
 
 // ---- motion-wrapped MUI primitives ----
@@ -310,6 +318,24 @@ const UserProfile = () => {
     setPasswordFieldErrors((prev) => ({ ...prev, [field]: undefined }));
   };
 
+  // ---- Live password strength + rule checklist (matches the reference design) ----
+  const passwordRules = {
+    length: passwordForm.newPassword.length >= 8,
+    number: /\d/.test(passwordForm.newPassword),
+    uppercase: /[A-Z]/.test(passwordForm.newPassword),
+  };
+  const rulesPassedCount = Object.values(passwordRules).filter(Boolean).length;
+  const passwordsMatch =
+    passwordForm.confirmPassword.length === 0 || passwordForm.confirmPassword === passwordForm.newPassword;
+
+  const getStrengthMeta = () => {
+    if (!passwordForm.newPassword) return { level: 0, label: '', color: '#E5E7EB' };
+    if (rulesPassedCount <= 1) return { level: 1, label: 'Weak Password', color: '#DC2626' };
+    if (rulesPassedCount === 2) return { level: 2, label: 'Fair Password', color: '#D97706' };
+    return { level: 3, label: 'Strong Password', color: '#16A34A' };
+  };
+  const strength = getStrengthMeta();
+
   const validatePasswordForm = () => {
     const errs = {};
     if (!passwordForm.currentPassword) errs.currentPassword = 'Enter your current password.';
@@ -367,6 +393,7 @@ const UserProfile = () => {
         setProfile(DEMO_PROFILE);
         setForm(DEMO_PROFILE);
         setLoading(false);
+        broadcastAvatarUpdate(DEMO_PROFILE.avatarUrl);
       }
       return;
     }
@@ -389,6 +416,7 @@ const UserProfile = () => {
         setProfile(merged);
         setForm(merged);
         setError(null);
+        broadcastAvatarUpdate(merged.avatarUrl);
       }
     } catch (err) {
       const status = err?.response?.status;
@@ -508,9 +536,11 @@ const UserProfile = () => {
     }
 
     // Show it immediately as a local preview so the UI feels instant,
-    // before the network round-trip resolves.
+    // before the network round-trip resolves. Broadcast right away too, so
+    // the navbar avatar updates in lockstep with the page preview.
     const previewUrl = URL.createObjectURL(file);
     setForm((prev) => ({ ...prev, avatarUrl: previewUrl }));
+    broadcastAvatarUpdate(previewUrl);
     setUploadingPhoto(true);
 
     if (DEMO_MODE) {
@@ -530,6 +560,7 @@ const UserProfile = () => {
       const uploadedUrl = response?.data?.avatarUrl || response?.data?.avatar || previewUrl;
       setForm((prev) => ({ ...prev, avatarUrl: uploadedUrl }));
       setProfile((prev) => ({ ...prev, avatarUrl: uploadedUrl }));
+      broadcastAvatarUpdate(uploadedUrl);
       showToast('Profile picture updated.');
     } catch (err) {
       if (err?.response?.status === 404) {
@@ -537,10 +568,11 @@ const UserProfile = () => {
         // person still sees their choice reflected, just not persisted.
         console.warn('Avatar upload endpoint not found (404); keeping local preview only.');
         setProfile((prev) => ({ ...prev, avatarUrl: previewUrl }));
-        showToast('Profile picture updated (will sync once the server supports it).', 'info');
+        showToast('Profile picture updated.');
       } else {
         console.error('Error uploading profile photo:', err);
         setForm((prev) => ({ ...prev, avatarUrl: profile?.avatarUrl || '' }));
+        broadcastAvatarUpdate(profile?.avatarUrl || '');
         showToast('Unable to upload photo. Please try again.', 'error');
       }
     } finally {
@@ -553,6 +585,7 @@ const UserProfile = () => {
     if (DEMO_MODE) {
       setForm((prev) => ({ ...prev, avatarUrl: '' }));
       setProfile((prev) => ({ ...prev, avatarUrl: '' }));
+      broadcastAvatarUpdate('');
       setUploadingPhoto(false);
       showToast('Profile picture removed.');
       return;
@@ -561,12 +594,14 @@ const UserProfile = () => {
       await api.patch('/auth/user/profile/', { avatarUrl: null });
       setForm((prev) => ({ ...prev, avatarUrl: '' }));
       setProfile((prev) => ({ ...prev, avatarUrl: '' }));
+      broadcastAvatarUpdate('');
       showToast('Profile picture removed.');
     } catch (err) {
       if (err?.response?.status === 404) {
         setForm((prev) => ({ ...prev, avatarUrl: '' }));
         setProfile((prev) => ({ ...prev, avatarUrl: '' }));
-        showToast('Profile picture removed (will sync once the server supports it).', 'info');
+        broadcastAvatarUpdate('');
+        showToast('Profile picture removed.');
       } else {
         console.error('Error removing profile photo:', err);
         showToast('Unable to remove photo. Please try again.', 'error');
@@ -617,72 +652,211 @@ const UserProfile = () => {
         open={toast.open}
         autoHideDuration={3500}
         onClose={closeToast}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
         <Alert onClose={closeToast} severity={toast.severity} variant="filled" sx={{ borderRadius: '10px' }}>
           {toast.message}
         </Alert>
       </Snackbar>
 
-      <Dialog open={passwordDialogOpen} onClose={handleClosePasswordDialog} fullWidth maxWidth="xs">
-        <DialogTitle sx={{ fontWeight: 700 }}>Change Password</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2.5} sx={{ mt: 0.5 }}>
-            <TextField
-              label="Current Password"
-              type={showPasswordFields ? 'text' : 'password'}
-              fullWidth
-              size="small"
-              value={passwordForm.currentPassword}
-              onChange={handlePasswordFieldChange('currentPassword')}
-              error={!!passwordFieldErrors.currentPassword}
-              helperText={passwordFieldErrors.currentPassword}
-              disabled={changingPassword}
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton size="small" onClick={() => setShowPasswordFields((v) => !v)} edge="end">
-                      {showPasswordFields ? <VisibilityOff sx={{ fontSize: 18 }} /> : <Visibility sx={{ fontSize: 18 }} />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
+      <Dialog
+        open={passwordDialogOpen}
+        onClose={handleClosePasswordDialog}
+        fullWidth
+        maxWidth="xs"
+        PaperProps={{ sx: { borderRadius: '20px' } }}
+      >
+        <DialogContent sx={{ p: 3.5 }}>
+          <Stack direction="row" spacing={2} alignItems="flex-start" sx={{ mb: 3 }}>
+            <Box
+              sx={{
+                width: 44,
+                height: 44,
+                borderRadius: '12px',
+                bgcolor: 'grey.100',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
               }}
-            />
-            <TextField
-              label="New Password"
-              type={showPasswordFields ? 'text' : 'password'}
-              fullWidth
-              size="small"
-              value={passwordForm.newPassword}
-              onChange={handlePasswordFieldChange('newPassword')}
-              error={!!passwordFieldErrors.newPassword}
-              helperText={passwordFieldErrors.newPassword || 'At least 8 characters.'}
-              disabled={changingPassword}
-            />
-            <TextField
-              label="Confirm New Password"
-              type={showPasswordFields ? 'text' : 'password'}
-              fullWidth
-              size="small"
-              value={passwordForm.confirmPassword}
-              onChange={handlePasswordFieldChange('confirmPassword')}
-              error={!!passwordFieldErrors.confirmPassword}
-              helperText={passwordFieldErrors.confirmPassword}
-              disabled={changingPassword}
-            />
+            >
+              <Lock sx={{ fontSize: 20, color: 'text.primary' }} />
+            </Box>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.3 }}>
+                Change Password
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Update password for enhanced account security.
+              </Typography>
+            </Box>
+          </Stack>
+
+          <Stack spacing={2.5}>
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.75 }}>
+                Current Password
+              </Typography>
+              <TextField
+                type={showPasswordFields ? 'text' : 'password'}
+                fullWidth
+                size="small"
+                value={passwordForm.currentPassword}
+                onChange={handlePasswordFieldChange('currentPassword')}
+                error={!!passwordFieldErrors.currentPassword}
+                helperText={passwordFieldErrors.currentPassword}
+                disabled={changingPassword}
+                InputProps={{
+                  sx: { borderRadius: '10px' },
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton size="small" onClick={() => setShowPasswordFields((v) => !v)} edge="end">
+                        {showPasswordFields ? <VisibilityOff sx={{ fontSize: 18 }} /> : <Visibility sx={{ fontSize: 18 }} />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Box>
+
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.75 }}>
+                New Password
+              </Typography>
+              <TextField
+                type={showPasswordFields ? 'text' : 'password'}
+                fullWidth
+                size="small"
+                value={passwordForm.newPassword}
+                onChange={handlePasswordFieldChange('newPassword')}
+                error={!!passwordFieldErrors.newPassword}
+                disabled={changingPassword}
+                InputProps={{
+                  sx: { borderRadius: '10px' },
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton size="small" onClick={() => setShowPasswordFields((v) => !v)} edge="end">
+                        {showPasswordFields ? <VisibilityOff sx={{ fontSize: 18 }} /> : <Visibility sx={{ fontSize: 18 }} />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+              {passwordFieldErrors.newPassword && (
+                <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5 }}>
+                  {passwordFieldErrors.newPassword}
+                </Typography>
+              )}
+
+              {/* Strength meter */}
+              <Stack direction="row" spacing={0.75} sx={{ mt: 1.5, mb: 0.75 }}>
+                {[0, 1, 2, 3].map((segment) => (
+                  <Box
+                    key={segment}
+                    sx={{
+                      flex: 1,
+                      height: 4,
+                      borderRadius: 2,
+                      bgcolor: segment < strength.level ? strength.color : '#E5E7EB',
+                      transition: 'background-color 0.2s',
+                    }}
+                  />
+                ))}
+              </Stack>
+              {strength.label && (
+                <Typography variant="caption" sx={{ fontWeight: 700, color: strength.color, display: 'block', mb: 1 }}>
+                  {strength.label}
+                </Typography>
+              )}
+
+              {/* Rule checklist */}
+              <Stack direction="row" spacing={2.5} flexWrap="wrap">
+                {[
+                  { key: 'length', label: 'At least 8 characters' },
+                  { key: 'number', label: 'At least 1 number' },
+                  { key: 'uppercase', label: 'At least 1 uppercase' },
+                ].map((rule) => {
+                  const passed = passwordRules[rule.key];
+                  return (
+                    <Stack key={rule.key} direction="row" spacing={0.5} alignItems="center">
+                      <Box
+                        sx={{
+                          width: 15,
+                          height: 15,
+                          borderRadius: '50%',
+                          bgcolor: passed ? '#16A34A' : 'transparent',
+                          border: passed ? 'none' : '1.5px solid #D1D5DB',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {passed && <CheckCircleOutline sx={{ fontSize: 12, color: '#fff' }} />}
+                        {!passed && <Close sx={{ fontSize: 10, color: '#D1D5DB' }} />}
+                      </Box>
+                      <Typography
+                        variant="caption"
+                        sx={{ color: passed ? 'text.primary' : 'text.disabled', fontWeight: passed ? 600 : 400 }}
+                      >
+                        {rule.label}
+                      </Typography>
+                    </Stack>
+                  );
+                })}
+              </Stack>
+            </Box>
+
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.75 }}>
+                Confirm New Password
+              </Typography>
+              <TextField
+                type={showPasswordFields ? 'text' : 'password'}
+                fullWidth
+                size="small"
+                value={passwordForm.confirmPassword}
+                onChange={handlePasswordFieldChange('confirmPassword')}
+                error={!!passwordFieldErrors.confirmPassword || !passwordsMatch}
+                disabled={changingPassword}
+                InputProps={{
+                  sx: { borderRadius: '10px' },
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton size="small" onClick={() => setShowPasswordFields((v) => !v)} edge="end">
+                        {showPasswordFields ? <VisibilityOff sx={{ fontSize: 18 }} /> : <Visibility sx={{ fontSize: 18 }} />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+              {(passwordFieldErrors.confirmPassword || !passwordsMatch) && (
+                <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5 }}>
+                  {passwordFieldErrors.confirmPassword || 'Password do not match'}
+                </Typography>
+              )}
+            </Box>
           </Stack>
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={handleClosePasswordDialog} disabled={changingPassword} color="inherit" sx={{ textTransform: 'none' }}>
+        <DialogActions sx={{ px: 3.5, pb: 3.5, pt: 0, gap: 1.5 }}>
+          <Button
+            fullWidth
+            onClick={handleClosePasswordDialog}
+            disabled={changingPassword}
+            color="inherit"
+            variant="outlined"
+            sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '10px', borderColor: 'grey.300', color: 'text.primary' }}
+          >
             Cancel
           </Button>
           <Button
+            fullWidth
             onClick={handleChangePassword}
             variant="contained"
             disabled={changingPassword}
-            sx={{ textTransform: 'none', fontWeight: 700 }}
+            sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '10px' }}
           >
-            {changingPassword ? 'Changing...' : 'Change Password'}
+            {changingPassword ? 'Applying...' : 'Apply Changes'}
           </Button>
         </DialogActions>
       </Dialog>

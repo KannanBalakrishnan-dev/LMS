@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -60,6 +60,11 @@ const NAV_SECTION_LABEL = '#9ca3af';
 const PROFILE_PATH = '/admin/UserProfile';
 const SETTINGS_PATH = '/admin/settings';
 
+// Custom event name used to broadcast avatar changes instantly across the
+// app (e.g. from UserProfile.jsx right after an upload/remove), so the
+// navbar doesn't need a full reload or a route change to pick it up.
+export const AVATAR_UPDATED_EVENT = 'profile-avatar-updated';
+
 // ---- motion-wrapped MUI primitives ----
 const MotionListItemButton = motion(ListItemButton);
 const MotionBox = motion(Box);
@@ -97,6 +102,7 @@ const AdminLayout = () => {
   const [notificationAnchorEl, setNotificationAnchorEl] = useState(null);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState('');
   const lastNotificationAtRef = useRef(null);
   const liveNotificationFailureCountRef = useRef(0);
   const liveNotificationsPausedRef = useRef(false);
@@ -120,6 +126,43 @@ const AdminLayout = () => {
   setAnchorEl(null);
   navigate(SETTINGS_PATH);
 };
+
+  // ---- Profile picture: seed from AuthContext immediately, then confirm
+  // against the extended profile endpoint (same 404-is-fine pattern used
+  // elsewhere in the app). ----
+  const fetchAvatar = useCallback(async () => {
+    const seeded = user?.avatar || user?.profile_picture || '';
+    if (seeded) setAvatarUrl(seeded);
+
+    try {
+      const response = await api.get('/auth/user/profile/');
+      const fetched = response?.data?.avatarUrl || response?.data?.avatar || '';
+      if (fetched) setAvatarUrl(fetched);
+    } catch (error) {
+      if (error?.response?.status === 404) {
+        // Extended profile endpoint not built yet — the seeded value above
+        // (if any) is all we have, which is fine.
+        console.warn('Extended profile endpoint not found (404); using auth user avatar only.');
+      } else {
+        console.error('Error fetching profile picture:', error);
+      }
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchAvatar();
+  }, [fetchAvatar]);
+
+  // Listen for instant updates broadcast by UserProfile.jsx right after an
+  // upload/remove, so the navbar avatar updates without waiting for a
+  // route change or manual refresh.
+  useEffect(() => {
+    const handleAvatarUpdated = (event) => {
+      setAvatarUrl(event.detail?.avatarUrl || '');
+    };
+    window.addEventListener(AVATAR_UPDATED_EVENT, handleAvatarUpdated);
+    return () => window.removeEventListener(AVATAR_UPDATED_EVENT, handleAvatarUpdated);
+  }, []);
 
   const fetchNotifications = async () => {
     try {
@@ -383,7 +426,11 @@ const AdminLayout = () => {
             {/* Profile Avatar — opens the profile menu (click "My Profile" to navigate) */}
             <IconButton onClick={(e) => setAnchorEl(e.currentTarget)}>
               <motion.div whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }}>
-                <Avatar sx={{ bgcolor: NAV_ACTIVE_BG, width: 36, height: 36, fontSize: '0.9rem' }}>
+                <Avatar
+                  src={avatarUrl || undefined}
+                  imgProps={{ referrerPolicy: 'no-referrer' }}
+                  sx={{ bgcolor: NAV_ACTIVE_BG, width: 36, height: 36, fontSize: '0.9rem' }}
+                >
                   {user?.username?.[0]?.toUpperCase() || 'A'}
                 </Avatar>
               </motion.div>
