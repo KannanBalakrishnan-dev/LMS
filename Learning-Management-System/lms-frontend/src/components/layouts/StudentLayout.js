@@ -350,18 +350,17 @@ const StudentLayout = () => {
 
           {/* Brand */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mr: 3 }}>
-            <Typography
-              sx={{
-                fontSize: '1.05rem',
-                fontWeight: 700,
-                color: '#111827',
-                letterSpacing: -0.2,
-                whiteSpace: 'nowrap',
-              }}
-            >
-              VDart Academy
-            </Typography>
-          </Box>
+                     <Typography
+                       sx={{
+                         fontSize: '1.05rem',
+                         fontWeight: 700,
+                         color: '#111827',
+                         letterSpacing: -0.2,
+                       }}
+                     >
+                       EduPlatform
+                     </Typography>
+                   </Box>
 
           <Box sx={{ flexGrow: 1 }} />
 
@@ -833,7 +832,7 @@ const StudentLayout = () => {
           flexShrink: 0,
         }}>
           <Typography variant="body2" sx={{ color: NAV_TEXT, fontWeight: 500 }}>
-            © {new Date().getFullYear()} YourLMS. All rights reserved.
+            © {new Date().getFullYear()} Eduplatform All rights reserved.
           </Typography>
         </Box>
       </Box>
