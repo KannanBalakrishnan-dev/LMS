@@ -590,72 +590,55 @@ const CourseCatalog = () => {
     }, [categories]);
 
     const handleEnroll = async (courseId) => {
-        const selected = (courses || []).find((course) => course?.id === courseId);
-        try {
-            const selectedStatus = enrollmentStatus[courseId];
-            const selectedIsAlreadyEnrolled = isEnrolledEnrollment(selectedStatus);
-            const selectedIsAlreadyCompleted = isCompletedEnrollment(selectedStatus);
-            const selectedIsAlreadyPending = isApprovalPending(selectedStatus);
+    const selected = (courses || []).find((course) => course?.id === courseId);
+    try {
+        // Always call the backend — it decides whether this needs approval.
+        const enrollResponse = await api.post(`/courses/${courseId}/enroll/`);
+        const approvalRequired = Boolean(enrollResponse?.data?.approval_required);
 
-            if (
-                activeEnrollmentCount >= 2 &&
-                !selectedIsAlreadyEnrolled &&
-                !selectedIsAlreadyCompleted &&
-                !selectedIsAlreadyPending
-            ) {
-                setEnrollmentLimitDialogOpen(true);
-                return { ok: false, pending: false };
-            }
-           
-            // Proceed with enrollment
-            const enrollResponse = await api.post(`/courses/${courseId}/enroll/`);
-            const approvalRequired = Boolean(enrollResponse?.data?.approval_required);
-
-            if (approvalRequired) {
-                const pendingStatusResponse = await api.get(`/courses/${courseId}/enrollment_status/`);
-                setEnrollmentStatus(prev => ({
-                    ...prev,
-                    [courseId]: pendingStatusResponse.data
-                }));
-                setEnrollMessageSeverity('info');
-                setEnrollSuccessMessage('Enrollment request sent. Please wait for admin approval to start learning.');
-                return { ok: true, pending: true };
-            }
-           
-
-            const response = await api.get(`/courses/${courseId}/enrollment_status/`);
+        if (approvalRequired) {
+            const pendingStatusResponse = await api.get(`/courses/${courseId}/enrollment_status/`);
             setEnrollmentStatus(prev => ({
                 ...prev,
-                [courseId]: response.data
+                [courseId]: pendingStatusResponse.data
             }));
-            return { ok: true, pending: false };
-        } catch (error) {
-            if (error.response?.status === 403) {
-                // Not assigned / not allowed: treat as a UX flow, not a crash.
-                if (selected) setSelectedCourse(selected);
-                setUnassignedDialogOpen(true);
-                return { ok: false, pending: false };
-            }
+            setEnrollMessageSeverity('info');
+            setEnrollSuccessMessage('Enrollment request sent. Please wait for admin approval to start learning.');
+            return { ok: true, pending: true };
+        }
 
-            console.error('Error enrolling in course:', error);
-            if (error.response?.status === 400) {
-                const serverMessage = error.response?.data?.error;
-                if (
-                    typeof serverMessage === 'string' &&
-                    (
-                        serverMessage.toLowerCase().includes('2 course') ||
-                        serverMessage.toLowerCase().includes('2 courses') ||
-                        serverMessage.toLowerCase().includes('another course')
-                    )
-                ) {
-                    setEnrollmentLimitDialogOpen(true);
-                } else {
-                    alert(serverMessage || THIRD_ENROLLMENT_MESSAGE);
-                }
-            }
+        const response = await api.get(`/courses/${courseId}/enrollment_status/`);
+        setEnrollmentStatus(prev => ({
+            ...prev,
+            [courseId]: response.data
+        }));
+        return { ok: true, pending: false };
+    } catch (error) {
+        if (error.response?.status === 403) {
+            if (selected) setSelectedCourse(selected);
+            setUnassignedDialogOpen(true);
             return { ok: false, pending: false };
         }
-    };
+
+        console.error('Error enrolling in course:', error);
+        if (error.response?.status === 400) {
+            const serverMessage = error.response?.data?.error;
+            if (
+                typeof serverMessage === 'string' &&
+                (
+                    serverMessage.toLowerCase().includes('2 course') ||
+                    serverMessage.toLowerCase().includes('2 courses') ||
+                    serverMessage.toLowerCase().includes('another course')
+                )
+            ) {
+                setEnrollmentLimitDialogOpen(true);
+            } else {
+                alert(serverMessage || THIRD_ENROLLMENT_MESSAGE);
+            }
+        }
+        return { ok: false, pending: false };
+    }
+};
 
     const openEnrollConfirmation = (course, onSuccess) => {
         if (!course) return;

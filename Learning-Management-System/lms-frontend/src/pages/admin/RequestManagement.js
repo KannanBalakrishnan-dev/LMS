@@ -168,6 +168,7 @@ const RequestManagement = () => {
   const getRequestTypeStyle = (type) => {
     if (!type) return { bg: '#EEF2FF', color: INDIGO };
     if (type.startsWith('DELETE_')) return { bg: '#FEE2E2', color: '#DC2626' };
+    if (type === 'COURSE_ENROLLMENT') return { bg: '#DBEAFE', color: '#1D4ED8' };
     if (type.includes('STUDENT')) return { bg: '#E0E7FF', color: INDIGO };
     if (type.includes('COURSE')) return { bg: '#E0E7FF', color: INDIGO };
     if (type.includes('CERTIFICATE')) return { bg: '#E0E7FF', color: INDIGO };
@@ -184,6 +185,7 @@ const RequestManagement = () => {
   const formatRequestType = (type) => {
     if (!type) return '';
     if (type.startsWith('DELETE_')) return type.replace('DELETE_', '');
+    if (type === 'COURSE_ENROLLMENT') return 'Course Enrollment';
     return type.replaceAll('_', ' ');
   };
 
@@ -545,6 +547,7 @@ const RequestManagement = () => {
               <MenuItem value="">All Request Types</MenuItem>
               <MenuItem value="STUDENT_REGISTRATION">Student Registration</MenuItem>
               <MenuItem value="COURSE">Course</MenuItem>
+              <MenuItem value="COURSE_ENROLLMENT">Course Enrollment</MenuItem>
               <MenuItem value="CERTIFICATE">Certificate</MenuItem>
             </Select>
           </FormControl>
@@ -784,10 +787,10 @@ const RequestManagement = () => {
                 <strong>Request Type:</strong> {formatRequestType(selectedRequest.request_type)}
               </Typography>
               <Typography variant="body1" gutterBottom>
-                <strong>Object:</strong> {selectedRequest.object_title}
+                <strong>{selectedRequest.request_type === 'COURSE_ENROLLMENT' ? 'Course' : 'Object'}:</strong> {selectedRequest.object_title}
               </Typography>
               <Typography variant="body1" gutterBottom>
-                <strong>Requested By:</strong> {selectedRequest.requested_by}
+                <strong>{selectedRequest.request_type === 'COURSE_ENROLLMENT' ? 'Student' : 'Requested By'}:</strong> {selectedRequest.requested_by}
               </Typography>
               <Typography variant="body1" gutterBottom>
                 <strong>Status:</strong> {selectedRequest.status}
@@ -809,6 +812,12 @@ const RequestManagement = () => {
                 <Typography variant="body1" gutterBottom>
                   <strong>Resolved At:</strong> {new Date(selectedRequest.resolved_at).toLocaleString()}
                 </Typography>
+              )}
+
+              {selectedRequest.request_type === 'COURSE_ENROLLMENT' && selectedRequest.status === 'PENDING' && (
+                <Alert severity="info" sx={{ mt: 2 }}>
+                  Approving this will enroll the student in the course immediately. Rejecting it will notify the student that their enrollment request was declined.
+                </Alert>
               )}
 
               {selectedRequest.status === 'PENDING' && (action === 'approve' || action === 'reject') && (
@@ -899,10 +908,10 @@ const RequestManagement = () => {
                 <strong>Request Type:</strong> {formatRequestType(selectedRequest.request_type)}
               </Typography>
               <Typography variant="body2" gutterBottom>
-                <strong>Object:</strong> {selectedRequest.object_title}
+                <strong>{selectedRequest.request_type === 'COURSE_ENROLLMENT' ? 'Course' : 'Object'}:</strong> {selectedRequest.object_title}
               </Typography>
               <Typography variant="body2" gutterBottom>
-                <strong>Requested By:</strong> {selectedRequest.requested_by}
+                <strong>{selectedRequest.request_type === 'COURSE_ENROLLMENT' ? 'Student' : 'Requested By'}:</strong> {selectedRequest.requested_by}
               </Typography>
               {adminMessage && (
                 <Typography variant="body2" gutterBottom>
@@ -914,6 +923,11 @@ const RequestManagement = () => {
           {action === 'approve' && selectedRequest?.request_type?.startsWith('DELETE_') && (
             <Alert severity="warning" sx={{ mt: 2 }}>
               <strong>Warning:</strong> This action will get hide from the user {selectedRequest?.request_type?.replace('DELETE_', '').toLowerCase()}.
+            </Alert>
+          )}
+          {action === 'approve' && selectedRequest?.request_type === 'COURSE_ENROLLMENT' && (
+            <Alert severity="info" sx={{ mt: 2 }}>
+              The student will be enrolled in "{selectedRequest?.object_title}" and notified right away.
             </Alert>
           )}
         </DialogContent>
@@ -951,6 +965,7 @@ const RequestManagement = () => {
                 <MenuItem value="">Select Request Type</MenuItem>
                 <MenuItem value="STUDENT_REGISTRATION">Student Registration</MenuItem>
                 <MenuItem value="COURSE">Course</MenuItem>
+                <MenuItem value="COURSE_ENROLLMENT">Course Enrollment</MenuItem>
                 <MenuItem value="CERTIFICATE">Certificate</MenuItem>
                 <MenuItem value="DELETE_COURSE">Delete Course</MenuItem>
                 <MenuItem value="DELETE_VIDEO">Delete Video</MenuItem>
@@ -961,7 +976,7 @@ const RequestManagement = () => {
 
             <TextField
               fullWidth
-              label="Object Title *"
+              label={newRequest.request_type === 'COURSE_ENROLLMENT' ? 'Course Title *' : 'Object Title *'}
               value={newRequest.object_title}
               onChange={(e) => setNewRequest({ ...newRequest, object_title: e.target.value })}
               placeholder="Enter object title (e.g., Course name, Video title)"
@@ -970,7 +985,7 @@ const RequestManagement = () => {
 
             <TextField
               fullWidth
-              label="Object ID (Optional)"
+              label={newRequest.request_type === 'COURSE_ENROLLMENT' ? 'Course ID (Optional)' : 'Object ID (Optional)'}
               value={newRequest.object_id}
               onChange={(e) => setNewRequest({ ...newRequest, object_id: e.target.value })}
               placeholder="Enter object ID if applicable"

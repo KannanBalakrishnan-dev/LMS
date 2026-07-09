@@ -1417,6 +1417,14 @@ class CourseViewSet(viewsets.ModelViewSet):
     def enrollment_status(self, request, pk=None):
         course = self.get_object()
         user = request.user
+
+        has_pending_request = Request.objects.filter(
+            request_type='COURSE_ENROLLMENT',
+            object_id=course.id,
+            requested_by=user,
+            status='PENDING',
+        ).exists()
+
         try:
             enrollment = Enrollment.objects.get(user=user, course=course)
             is_completed = check_course_completion(user, course)
@@ -1431,7 +1439,7 @@ class CourseViewSet(viewsets.ModelViewSet):
                 'progress_percent': calculate_course_progress(user, course),
                 'is_completed': is_completed,
                 'is_assigned': is_assigned,
-                'approval_pending': False,
+                'approval_pending': has_pending_request,
             }
         except Enrollment.DoesNotExist:
             is_assigned = CourseAssignment.objects.filter(course=course).filter(Q(user=user) | Q(team=user.team)).exists()
@@ -1445,10 +1453,9 @@ class CourseViewSet(viewsets.ModelViewSet):
                 'progress_percent': 0,
                 'is_completed': False,
                 'is_assigned': is_assigned,
-                'approval_pending': False,
+                'approval_pending': has_pending_request,
             }
         return Response(data)
-
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def mark_started(self, request, pk=None):
         course = self.get_object()
@@ -1506,9 +1513,34 @@ class CourseViewSet(viewsets.ModelViewSet):
                     active_enrollment_count += 1
 
             if active_enrollment_count >= 2:
+                existing_request = Request.objects.filter(
+                    request_type='COURSE_ENROLLMENT',
+                    object_id=course.id,
+                    requested_by=user,
+                    status='PENDING',
+                ).first()
+
+                if not existing_request:
+                    Request.objects.create(
+                        request_type='COURSE_ENROLLMENT',
+                        object_id=course.id,
+                        object_title=course.title,
+                        requested_by=user,
+                        status='PENDING',
+                        message=f'{user.username} requested to enroll in a 3rd course.',
+                    )
+
+                    for admin in User.objects.filter(user_type='ADMIN', is_deleted=False):
+                        Notification.objects.create(
+                            user=admin,
+                            sender=user,
+                            message=f"{user.username} requested enrollment in '{course.title}' (3rd course).",
+                        )
+
                 return Response({
-                    'error': 'You can enroll in only 2 courses at a time. Complete one of your current courses to enroll in another.'
-                }, status=status.HTTP_400_BAD_REQUEST)
+                    'approval_required': True,
+                    'message': 'Enrollment request sent. Please wait for admin approval to start learning.',
+                }, status=status.HTTP_200_OK)
 
         enrollment, created = Enrollment.objects.get_or_create(
             user=user,
