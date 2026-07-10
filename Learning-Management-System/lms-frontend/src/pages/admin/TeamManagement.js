@@ -22,6 +22,32 @@ import { useAuth } from '../../contexts/AuthContext';
 
 const AVATAR_COLORS = ['#e74c3c','#8e44ad','#2980b9','#27ae60','#e67e22','#16a085','#d35400','#6c3483'];
 
+// Hoisted to module scope (previously re-created on every render inside the
+// component even though the values never change).
+const COURSE_PALETTES = [
+  { bg: '#fce4ec', color: '#c62828' },   // red/pink
+  { bg: '#e3f2fd', color: '#1565c0' },   // blue
+  { bg: '#e8f5e9', color: '#2e7d32' },   // green
+  { bg: '#e0f7fa', color: '#00695c' },   // teal
+  { bg: '#fff3e0', color: '#e65100' },   // orange
+  { bg: '#f3e5f5', color: '#6a1b9a' },   // purple
+  { bg: '#e8eaf6', color: '#283593' },   // indigo
+  { bg: '#fff8e1', color: '#f57f17' },   // amber
+  { bg: '#fbe9e7', color: '#bf360c' },   // deep orange
+  { bg: '#e1f5fe', color: '#0277bd' },   // light blue
+  { bg: '#f1f8e9', color: '#558b2f' },   // light green
+  { bg: '#fce4ec', color: '#880e4f' },   // pink
+  { bg: '#ede7f6', color: '#4527a0' },   // deep purple
+  { bg: '#e8f5e9', color: '#1b5e20' },   // dark green
+  { bg: '#e3f2fd', color: '#0d47a1' },   // dark blue
+];
+
+const getCourseColor = (title) => {
+  if (!title) return COURSE_PALETTES[0];
+  const sum = title.trim().toLowerCase().split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+  return COURSE_PALETTES[sum % COURSE_PALETTES.length];
+};
+
 const getInitials = (name) => {
   if (!name) return '?';
   const words = name.trim().split(/\s+/);
@@ -81,7 +107,6 @@ const TeamManagement = () => {
   const [teams, setTeams] = useState([]);
   const [users, setUsers] = useState([]);
   const [courses, setCourses] = useState([]);
-  // eslint-disable-next-line no-unused-vars
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const [snackbar, setSnackbar] = useState({
@@ -121,6 +146,10 @@ const TeamManagement = () => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [requestMessage, setRequestMessage] = useState('');
 
+  // Per-row "..." actions menu (single shared instance, rendered once below)
+  const [menuAnchorEl, setMenuAnchorEl] = useState(null);
+  const [menuTeam, setMenuTeam] = useState(null);
+
   useEffect(() => {
     fetchTeams();
     fetchUsers();
@@ -136,7 +165,7 @@ const TeamManagement = () => {
       const term = searchTerm.toLowerCase();
       result = result.filter(
         team =>
-          team.name.toLowerCase().includes(term) ||
+          (team.name || '').toLowerCase().includes(term) ||
           (team.description && team.description.toLowerCase().includes(term))
       );
     }
@@ -156,7 +185,7 @@ const TeamManagement = () => {
     } else if (sortBy === 'oldest') {
       result.sort((a, b) => (a.id || 0) - (b.id || 0));
     } else if (sortBy === 'name') {
-      result.sort((a, b) => a.name.localeCompare(b.name));
+      result.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     }
 
     return result;
@@ -168,6 +197,12 @@ const TeamManagement = () => {
   }, [filteredTeams, page, rowsPerPage]);
 
   const pageCount = Math.max(1, Math.ceil(filteredTeams.length / rowsPerPage));
+
+  useEffect(() => {
+    if (page > pageCount - 1) {
+      setPage(Math.max(0, pageCount - 1));
+    }
+  }, [pageCount, page]);
 
   // ---------------------------------------------------------------------------
   // Month-over-month stats for the 4 summary cards.
@@ -220,6 +255,13 @@ const TeamManagement = () => {
     };
   }, [teams]);
 
+  // Updates a single team in local state without re-fetching (and re-hydrating)
+  // the entire team list. Member/course mutations already return the full,
+  // updated team from the API — there's no need to refetch everything else too.
+  const patchTeamInList = (updatedTeam) => {
+    setTeams(prev => prev.map(t => (t.id === updatedTeam.id ? updatedTeam : t)));
+  };
+
   const fetchTeams = async () => {
     try {
       const response = await api.get('/teams/');
@@ -255,7 +297,6 @@ const TeamManagement = () => {
 
   const handleOpenDialog = async (team = null) => {
     if (team) {
-      setEditTeam(team);
       const res = await api.get(`/teams/${team.id}/`).catch(() => ({ data: team }));
       const full = res.data;
       setEditTeam(full);
@@ -330,10 +371,22 @@ const TeamManagement = () => {
           course_ids: formData.course_ids,
         });
       }
-      fetchTeams();
+
+      if (editTeam) {
+        // Only this one team changed — patch it in place instead of
+        // re-fetching (and re-hydrating with a detail call) every team.
+        const refreshed = await api.get(`/teams/${teamId}/`);
+        patchTeamInList(refreshed.data);
+      } else {
+        // A new team was created, so the list itself changed shape —
+        // a full refetch is the simplest correct option here.
+        fetchTeams();
+      }
+      showSnackbar(editTeam ? 'Team updated successfully' : 'Team created successfully', 'success');
       handleCloseDialog();
     } catch (error) {
       console.error('Error saving team:', error);
+      showSnackbar('Failed to save team', 'error');
     }
   };
 
@@ -344,10 +397,11 @@ const TeamManagement = () => {
       });
       const response = await api.get(`/teams/${editTeam.id}/`);
       setEditTeam(response.data);
-      fetchTeams();
+      patchTeamInList(response.data);
       setSelectedUser('');
     } catch (error) {
       console.error('Error adding member:', error);
+      showSnackbar('Failed to add member', 'error');
     }
   };
 
@@ -356,9 +410,10 @@ const TeamManagement = () => {
       await api.delete(`/teams/${editTeam.id}/members/${userId}/`);
       const response = await api.get(`/teams/${editTeam.id}/`);
       setEditTeam(response.data);
-      fetchTeams();
+      patchTeamInList(response.data);
     } catch (error) {
       console.error('Error removing member:', error);
+      showSnackbar('Failed to remove member', 'error');
     }
   };
 
@@ -369,10 +424,12 @@ const TeamManagement = () => {
       });
       const response = await api.get(`/teams/${editTeam.id}/`);
       setEditTeam(response.data);
-      fetchTeams();
+      patchTeamInList(response.data);
       handleCloseCourseDialog();
+      showSnackbar('Courses assigned successfully', 'success');
     } catch (error) {
       console.error('Error assigning courses:', error);
+      showSnackbar('Failed to assign courses', 'error');
     }
   };
 
@@ -423,36 +480,11 @@ const TeamManagement = () => {
         message: requestMessage
       });
       handleCloseRequestDialog();
+      showSnackbar('Deletion request submitted', 'success');
     } catch (error) {
       console.error('Error submitting request:', error);
+      showSnackbar('Failed to submit deletion request', 'error');
     }
-  };
-
-  const [menuAnchorEl, setMenuAnchorEl] = useState(null);
-  const [menuTeam, setMenuTeam] = useState(null);
-
-  const COURSE_PALETTES = [
-    { bg: '#fce4ec', color: '#c62828' },   // red/pink
-    { bg: '#e3f2fd', color: '#1565c0' },   // blue
-    { bg: '#e8f5e9', color: '#2e7d32' },   // green
-    { bg: '#e0f7fa', color: '#00695c' },   // teal
-    { bg: '#fff3e0', color: '#e65100' },   // orange
-    { bg: '#f3e5f5', color: '#6a1b9a' },   // purple
-    { bg: '#e8eaf6', color: '#283593' },   // indigo
-    { bg: '#fff8e1', color: '#f57f17' },   // amber
-    { bg: '#fbe9e7', color: '#bf360c' },   // deep orange
-    { bg: '#e1f5fe', color: '#0277bd' },   // light blue
-    { bg: '#f1f8e9', color: '#558b2f' },   // light green
-    { bg: '#fce4ec', color: '#880e4f' },   // pink
-    { bg: '#ede7f6', color: '#4527a0' },   // deep purple
-    { bg: '#e8f5e9', color: '#1b5e20' },   // dark green
-    { bg: '#e3f2fd', color: '#0d47a1' },   // dark blue
-  ];
-
-  const getCourseColor = (title) => {
-    if (!title) return COURSE_PALETTES[0];
-    const sum = title.trim().toLowerCase().split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
-    return COURSE_PALETTES[sum % COURSE_PALETTES.length];
   };
 
   const handleOpenMenu = (event, team) => {
@@ -709,6 +741,20 @@ const TeamManagement = () => {
             </TableRow>
           </TableHead>
           <TableBody>
+            {loading && teams.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={6} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                  Loading teams…
+                </TableCell>
+              </TableRow>
+            )}
+            {!loading && filteredTeams.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={6} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                  {teams.length === 0 ? 'No teams yet — create one to get started.' : 'No teams match your search or filters.'}
+                </TableCell>
+              </TableRow>
+            )}
             {paginatedTeams.map((team) => {
               const isActive = team.is_active === true || team.is_active === 1;
               return (
@@ -771,7 +817,7 @@ const TeamManagement = () => {
                           {team.members_count} Members
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {team.members?.[0]?.username || team.team_lead?.username || team.team_lead || 'N/A'} (Team Lead)
+                          {team.team_lead?.username || team.team_lead || 'No lead assigned'}
                         </Typography>
                       </Box>
                     </Box>
@@ -896,29 +942,31 @@ const TeamManagement = () => {
                         <MoreVertIcon fontSize="small" />
                       </IconButton>
                     </Stack>
-                    <Menu
-                      anchorEl={menuAnchorEl}
-                      open={Boolean(menuAnchorEl && menuTeam?.id === team.id)}
-                      onClose={handleCloseMenu}
-                      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                      transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                    >
-                      <MenuItem onClick={handleMenuEdit}>Edit</MenuItem>
-                      <MenuItem onClick={handleMenuDelete} sx={{ color: 'error.main' }}>
-                        Delete
-                      </MenuItem>
-                      {user?.user_type === 'STAFF' && (
-                        <MenuItem onClick={handleMenuRequestDeletion} sx={{ color: 'warning.main' }}>
-                          Request Deletion
-                        </MenuItem>
-                      )}
-                    </Menu>
                   </TableCell>
                 </TableRow>
               );
             })}
           </TableBody>
         </Table>
+
+        {/* Single shared row-actions menu (was previously duplicated once per row) */}
+        <Menu
+          anchorEl={menuAnchorEl}
+          open={Boolean(menuAnchorEl && menuTeam)}
+          onClose={handleCloseMenu}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        >
+          <MenuItem onClick={handleMenuEdit}>Edit</MenuItem>
+          <MenuItem onClick={handleMenuDelete} sx={{ color: 'error.main' }}>
+            Delete
+          </MenuItem>
+          {user?.user_type === 'STAFF' && (
+            <MenuItem onClick={handleMenuRequestDeletion} sx={{ color: 'warning.main' }}>
+              Request Deletion
+            </MenuItem>
+          )}
+        </Menu>
 
         {/* FOOTER - Pagination Info & Controls (inside the table card) */}
         <Box
@@ -1071,9 +1119,15 @@ const TeamManagement = () => {
                 {editTeam.members?.map(member => (
                   <Chip key={member.id} label={member.username} size="small"
                     onDelete={async () => {
-                      await api.delete(`/teams/${editTeam.id}/members/${member.id}/`);
-                      const r = await api.get(`/teams/${editTeam.id}/`);
-                      setEditTeam(r.data); fetchTeams();
+                      try {
+                        await api.delete(`/teams/${editTeam.id}/members/${member.id}/`);
+                        const r = await api.get(`/teams/${editTeam.id}/`);
+                        setEditTeam(r.data);
+                        patchTeamInList(r.data);
+                      } catch (error) {
+                        console.error('Error removing member:', error);
+                        showSnackbar('Failed to remove member', 'error');
+                      }
                     }}
                     sx={{ borderRadius: '999px', bgcolor: '#f1f5f9', color: '#1e293b' }} />
                 ))}
@@ -1093,9 +1147,16 @@ const TeamManagement = () => {
                 </FormControl>
                 <Button variant="contained" size="small" disabled={!dialogSelectedUser}
                   onClick={async () => {
-                    await api.post(`/teams/${editTeam.id}/members/`, { user_id: dialogSelectedUser });
-                    const r = await api.get(`/teams/${editTeam.id}/`);
-                    setEditTeam(r.data); setDialogSelectedUser(''); fetchTeams();
+                    try {
+                      await api.post(`/teams/${editTeam.id}/members/`, { user_id: dialogSelectedUser });
+                      const r = await api.get(`/teams/${editTeam.id}/`);
+                      setEditTeam(r.data);
+                      patchTeamInList(r.data);
+                      setDialogSelectedUser('');
+                    } catch (error) {
+                      console.error('Error adding member:', error);
+                      showSnackbar('Failed to add member', 'error');
+                    }
                   }}
                   sx={{ borderRadius: '10px', textTransform: 'none', whiteSpace: 'nowrap', px: 2 }}>
                   Add
