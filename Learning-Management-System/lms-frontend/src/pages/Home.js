@@ -31,7 +31,7 @@ import {
 import phoneFrame from "../assets/Group 2659.png";
 import aboutImage from "../assets/unsplash_vbxyFxlgpjM.png";
 import courseAnalyticsImage from "../assets/pexels-olya-kobruseva-5561923 1 - Copy.png";
-import logoImage from "../assets/vdartacademylogo1 3.png";
+// import logoImage from "../assets/vdartacademylogo1 3.png";
 import courseCardFrameImage from "../assets/Group 2626.png";
 import featureAnalyticsIcon from "../assets/Container.png";
 import featureBuilderIcon from "../assets/Container (1).png";
@@ -56,11 +56,10 @@ import { PUBLIC_SITE_NAV_SECTIONS } from "../components/public/publicSiteNav";
 
 const courseFullStackImage = "/image-001.png";
 const courseDigitalMarketingImage = "/image-002.png";
-const CONTACT_EMAIL = "info@vdartacademy.com";
-const CONTACT_PHONE_DISPLAY = "+91 9944548333";
-const CONTACT_PHONE_LINK = "tel:+919944548333";
-const CONTACT_MAP_URL =
-  "https://www.google.com/maps/search/?api=1&query=VDart%2C+30%2C+Chennai-Theni+Hwy%2C+Mannarpuram%2C+Tiruchirappalli%2C+Tamil+Nadu+620020";
+const CONTACT_EMAIL = "Eduplatforminc@gmail.com";
+const CONTACT_PHONE_DISPLAY = "+91 9876543210";
+const CONTACT_PHONE_LINK = "tel:+919876543210";
+const CONTACT_MAP_URL = "#";
 const SOCIAL_LINKS = {
   facebook: "",
   instagram: "",
@@ -162,14 +161,14 @@ const courseCards = [
 const faqItems = [
   {
     id: "faq-1",
-    title: "Why choose VDart Academy?",
+    title: "Why choose EduPlatform?",
     body: "Transform your career with industry-leading training and real-world experience. Gain practical experience by applying what you learn in real internships.",
     icon: faqIcon1,
     activeIcon: faqIconActive4,
   },
   {
     id: "faq-2",
-    title: "How is VDart Academy different from other platforms?",
+    title: "How is EduPlatform different from other platforms?",
     body: "We offer a comprehensive learning ecosystem that includes advanced analytics to track your progress, productivity tools to keep you organized, and a Data dashboard for real-time insights into your learning journey.",
     icon: faqIcon2,
     activeIcon: faqIconActive3,
@@ -246,6 +245,116 @@ function shellField(placeholder, type = "text") {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* Scroll / count-up animation helpers                                */
+/* ------------------------------------------------------------------ */
+
+// Generic hook: tells you when an element has scrolled into view.
+// `once` (default true) means it only fires the first time — good for
+// entrance animations that shouldn't replay every time you scroll past.
+function useInView(options = {}) {
+  const { threshold = 0.25, rootMargin = "0px", once = true } = options;
+  const ref = useRef(null);
+  const [isInView, setIsInView] = useState(false);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return undefined;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsInView(true);
+          if (once) observer.disconnect();
+        } else if (!once) {
+          setIsInView(false);
+        }
+      },
+      { threshold, rootMargin }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [threshold, rootMargin, once]);
+
+  return [ref, isInView];
+}
+
+// Wrap any block of content in <Reveal> to have it fade + slide up
+// into place the first time it scrolls into the viewport.
+function Reveal({
+  children,
+  delay = 0,
+  duration = 700,
+  y = 28,
+  sx = {},
+  component = Box,
+  ...rest
+}) {
+  const [ref, isInView] = useInView({ threshold: 0.15 });
+  const Component = component;
+
+  return (
+    <Component
+      ref={ref}
+      sx={{
+        opacity: isInView ? 1 : 0,
+        transform: isInView ? "translateY(0)" : `translateY(${y}px)`,
+        transition: `opacity ${duration}ms ease ${delay}ms, transform ${duration}ms ease ${delay}ms`,
+        willChange: "opacity, transform",
+        ...sx,
+      }}
+      {...rest}
+    >
+      {children}
+    </Component>
+  );
+}
+
+// Animates a numeric string like "2.5M+", "500+", "800+" counting up
+// from 0 to its target value once it scrolls into view.
+function CountUp({ value, duration = 1600 }) {
+  const match = String(value).match(/^([\d.]+)(.*)$/);
+  const numericPart = match ? parseFloat(match[1]) : 0;
+  const suffix = match ? match[2] : "";
+  const decimals = numericPart % 1 !== 0 ? 1 : 0;
+
+  const [ref, isInView] = useInView({ threshold: 0.4 });
+  const [display, setDisplay] = useState(0);
+
+  useEffect(() => {
+    if (!isInView) return undefined;
+
+    let startTime = null;
+    let rafId;
+
+    const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+
+    const step = (timestamp) => {
+      if (startTime === null) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / duration, 1);
+      const eased = easeOutCubic(progress);
+      setDisplay(numericPart * eased);
+
+      if (progress < 1) {
+        rafId = requestAnimationFrame(step);
+      } else {
+        setDisplay(numericPart);
+      }
+    };
+
+    rafId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(rafId);
+  }, [isInView, numericPart, duration]);
+
+  return (
+    <span ref={ref}>
+      {display.toFixed(decimals)}
+      {suffix}
+    </span>
+  );
+}
+
 function FeatureCard({ icon: Icon, iconSrc, title, description }) {
   return (
     <Box
@@ -261,6 +370,11 @@ function FeatureCard({ icon: Icon, iconSrc, title, description }) {
         py: 3,
         textAlign: "center",
         mx: "auto",
+        transition: "transform 0.3s ease, box-shadow 0.3s ease",
+        "&:hover": {
+          transform: "translateY(-6px)",
+          boxShadow: "0 16px 30px rgba(28, 30, 83, 0.10)",
+        },
       }}
     >
       <Box
@@ -873,141 +987,146 @@ export default function Home() {
             pb: { xs: 6, md: "60px" },
           }}
         >
-          <Stack
-            direction={{ xs: "column", lg: "row" }}
-            justifyContent="space-between"
-            spacing={{ xs: 3, md: 4 }}
-            sx={{
-              width: "100%",
-              maxWidth: 1000,
-              mx: "auto",
-              alignItems: { xs: "center", lg: "center" },
-              textAlign: { xs: "center", lg: "left" },
-            }}
-          >
-            {/* Left - Heading (Smaller Font) */}
-            <Typography
+          <Reveal>
+            <Stack
+              direction={{ xs: "column", lg: "row" }}
+              justifyContent="space-between"
+              spacing={{ xs: 3, md: 4 }}
               sx={{
                 width: "100%",
-                maxWidth: { lg: 435 },
-                color: "#141219",
-                fontFamily: '"Poppins", sans-serif',
-                fontWeight: 600,
-                mt: { xs: 1, md: "20px" },
-                fontSize: {
-                  xs: "2.05rem",
-                  sm: "2.45rem",
-                  md: "2.70rem",
-                },
-                lineHeight: "1.1",
-                letterSpacing: "-0.03em",
+                maxWidth: 1000,
+                mx: "auto",
+                alignItems: { xs: "center", lg: "center" },
                 textAlign: { xs: "center", lg: "left" },
               }}
             >
-              Enhance Your
-              <br />
-              Knowledge and
-              <br />
-              Achieve Your Goals
-            </Typography>
+              {/* Left - Heading (Smaller Font) */}
+              <Typography
+                sx={{
+                  width: "100%",
+                  maxWidth: { lg: 435 },
+                  color: "#141219",
+                  fontFamily: '"Poppins", sans-serif',
+                  fontWeight: 600,
+                  mt: { xs: 1, md: "20px" },
+                  fontSize: {
+                    xs: "2.05rem",
+                    sm: "2.45rem",
+                    md: "2.70rem",
+                  },
+                  lineHeight: "1.1",
+                  letterSpacing: "-0.03em",
+                  textAlign: { xs: "center", lg: "left" },
+                }}
+              >
+                Enhance Your
+                <br />
+                Knowledge and
+                <br />
+                Achieve Your Goals
+              </Typography>
 
-            {/* Right - Description (Smaller Font) */}
+              {/* Right - Description (Smaller Font) */}
+              <Box
+                sx={{
+                  width: "100%",
+                  maxWidth: { lg: 480 },
+                  ml: { lg: "auto" },
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontFamily: '"Inter", "Poppins", sans-serif',
+                    color: "#141219",
+                    fontSize: { xs: "1.02rem", md: "1.12rem" },
+                    fontWeight: 400,
+                    lineHeight: "1.68",
+                    letterSpacing: "0.25px",
+                  }}
+                >
+                 At Sparkly, we combine expert instruction, interactive learning experiences, and industry-focused resources to help you develop valuable skills, accelerate your career, and achieve lasting professional success.
+
+                </Typography>
+
+                <Typography
+                  sx={{
+                    mt: { xs: 2.8, md: "30px" },
+                    fontFamily: '"Inter", "Poppins", sans-serif',
+                    color: "#141219",
+                    fontSize: { xs: "1.02rem", md: "1.12rem" },
+                    fontWeight: 400,
+                    lineHeight: "1.68",
+                    letterSpacing: "0.25px",
+                  }}
+                >
+                 Sparkly empowers learners through immersive internships, expert-led guidance, and practical, career-focused training. Gain real-world experience, develop in-demand skills, and stay ahead in today's competitive professional landscape.
+
+                </Typography>
+              </Box>
+            </Stack>
+          </Reveal>
+
+          {/* Stats Cards - Compact like your image, now with count-up */}
+          <Reveal delay={150}>
             <Box
               sx={{
+                mt: { xs: 6, md: "60px" },
                 width: "100%",
-                maxWidth: { lg: 480 },
-                ml: { lg: "auto" },
+                maxWidth: 1000,
+                mx: "auto",
+                backgroundColor: colors.white,
+                borderRadius: "20px",
+                overflow: "hidden",
+                boxShadow: "0 4px 25px rgba(0,0,0,0.06)",
               }}
             >
-              <Typography
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                divider={
+                  <Divider
+                    orientation="vertical"
+                    flexItem
+                    sx={{ borderColor: "rgba(0,0,0,0.08)" }}
+                  />
+                }
                 sx={{
-                  fontFamily: '"Inter", "Poppins", sans-serif',
-                  color: "#141219",
-                  fontSize: { xs: "1.02rem", md: "1.12rem" },
-                  fontWeight: 400,
-                  lineHeight: "1.68",
-                  letterSpacing: "0.25px",
+                  "& > *": {
+                    flex: 1,
+                    py: { xs: 3.2, sm: "38px" },
+                    textAlign: "center",
+                  },
                 }}
               >
-               At Sparkly, we combine expert instruction, interactive learning experiences, and industry-focused resources to help you develop valuable skills, accelerate your career, and achieve lasting professional success.
-
-              </Typography>
-
-              <Typography
-                sx={{
-                  mt: { xs: 2.8, md: "30px" },
-                  fontFamily: '"Inter", "Poppins", sans-serif',
-                  color: "#141219",
-                  fontSize: { xs: "1.02rem", md: "1.12rem" },
-                  fontWeight: 400,
-                  lineHeight: "1.68",
-                  letterSpacing: "0.25px",
-                }}
-              >
-               Sparkly empowers learners through immersive internships, expert-led guidance, and practical, career-focused training. Gain real-world experience, develop in-demand skills, and stay ahead in today's competitive professional landscape.
-
-              </Typography>
+                {stats.map((item) => (
+                  <Box key={item.label}>
+                    <Typography
+                      sx={{
+                        fontSize: { xs: "1.95rem", md: "2.25rem" },
+                        fontWeight: 600,
+                        color: "#141219",
+                        lineHeight: 1,
+                      }}
+                    >
+                      <CountUp value={item.value} />
+                    </Typography>
+                    <Typography
+                      sx={{
+                        mt: 0.8,
+                        fontSize: { xs: "0.93rem", md: "1.02rem" },
+                        color: "#2b2b2f",
+                        fontWeight: 500,
+                      }}
+                    >
+                      {item.label}
+                    </Typography>
+                  </Box>
+                ))}
+              </Stack>
             </Box>
-          </Stack>
-
-          {/* Stats Cards - Compact like your image */}
-          <Box
-            sx={{
-              mt: { xs: 6, md: "60px" },
-              width: "100%",
-              maxWidth: 1000,
-              mx: "auto",
-              backgroundColor: colors.white,
-              borderRadius: "20px",
-              overflow: "hidden",
-              boxShadow: "0 4px 25px rgba(0,0,0,0.06)",
-            }}
-          >
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              divider={
-                <Divider
-                  orientation="vertical"
-                  flexItem
-                  sx={{ borderColor: "rgba(0,0,0,0.08)" }}
-                />
-              }
-              sx={{
-                "& > *": {
-                  flex: 1,
-                  py: { xs: 3.2, sm: "38px" },
-                  textAlign: "center",
-                },
-              }}
-            >
-              {stats.map((item) => (
-                <Box key={item.label}>
-                  <Typography
-                    sx={{
-                      fontSize: { xs: "1.95rem", md: "2.25rem" },
-                      fontWeight: 600,
-                      color: "#141219",
-                      lineHeight: 1,
-                    }}
-                  >
-                    {item.value}
-                  </Typography>
-                  <Typography
-                    sx={{
-                      mt: 0.8,
-                      fontSize: { xs: "0.93rem", md: "1.02rem" },
-                      color: "#2b2b2f",
-                      fontWeight: 500,
-                    }}
-                  >
-                    {item.label}
-                  </Typography>
-                </Box>
-              ))}
-            </Stack>
-          </Box>
+          </Reveal>
         </Box>
 
+        {/* ================= PLATFORM FEATURES ================= */}
         <Box
           id="features"
           sx={{
@@ -1017,21 +1136,48 @@ export default function Home() {
             pt: { xs: 5, md: "28px" },
             pb: { xs: 1, md: "24px" },
             overflow: { xs: "hidden", md: "visible" },
+            "@keyframes galaxyFloat": {
+              "0%": { transform: "translateY(0px)" },
+              "50%": { transform: "translateY(-12px)" },
+              "100%": { transform: "translateY(0px)" },
+            },
           }}
         >
-          <Typography
-            sx={{
-              fontSize: { xs: "2.5rem", md: "36px" },
-              fontWeight: 700,
-              color: "#3A3A3D",
-              mb: { xs: 4, md: "28px" },
-              maxWidth: 1240,
-              mx: "auto",
-              pl: { lg: "40px" },
-            }}
-          >
-            Platform Features
-          </Typography>
+          <Reveal>
+            <Box
+              sx={{
+                maxWidth: 1240,
+                mx: "auto",
+                textAlign: "center",
+                mb: { xs: 4, md: "28px" },
+              }}
+            >
+              <Typography
+                sx={{
+                  fontSize: { xs: "2.5rem", md: "36px" },
+                  fontWeight: 700,
+                  color: "#3A3A3D",
+                }}
+              >
+                Platform Features
+              </Typography>
+              <Typography
+                sx={{
+                  mt: 1.5,
+                  mx: "auto",
+                  maxWidth: 620,
+                  fontFamily: '"Inter", "Poppins", sans-serif',
+                  fontSize: { xs: "0.95rem", md: "1rem" },
+                  fontWeight: 400,
+                  lineHeight: 1.6,
+                  color: "#6B7280",
+                }}
+              >
+                Empowering educators with cutting-edge tools to deliver
+                seamless, engaging, and data-driven learning experiences.
+              </Typography>
+            </Box>
+          </Reveal>
           <Box
             sx={{
               display: "grid",
@@ -1057,17 +1203,24 @@ export default function Home() {
                 justifyItems: "center",
               }}
             >
-              {featuresLeft.map((feature) => (
-                <Box
+              {featuresLeft.map((feature, index) => (
+                <Reveal
                   key={feature.title}
-                  sx={{
-                    width: "100%",
-                    display: "flex",
-                    justifyContent: "center",
-                  }}
+                  delay={index * 120}
+                  sx={{ width: "100%", display: "flex", justifyContent: "center" }}
                 >
-                  <FeatureCard {...feature} />
-                </Box>
+                  <Box
+                    sx={{
+                      width: "100%",
+                      display: "flex",
+                      justifyContent: "center",
+                      animation: "galaxyFloat 4.5s ease-in-out infinite",
+                      animationDelay: `${index * 0.6}s`,
+                    }}
+                  >
+                    <FeatureCard {...feature} />
+                  </Box>
+                </Reveal>
               ))}
             </Box>
 
@@ -1104,6 +1257,7 @@ export default function Home() {
                   zIndex: 2,
                   mx: "auto",
                   mb: { xs: -2, md: -4 },
+                  animation: "galaxyFloat 5.5s ease-in-out infinite",
                 }}
               />
             </Box>
@@ -1119,17 +1273,24 @@ export default function Home() {
                 justifyItems: "center",
               }}
             >
-              {featuresRight.map((feature) => (
-                <Box
+              {featuresRight.map((feature, index) => (
+                <Reveal
                   key={feature.title}
-                  sx={{
-                    width: "100%",
-                    display: "flex",
-                    justifyContent: "center",
-                  }}
+                  delay={index * 120}
+                  sx={{ width: "100%", display: "flex", justifyContent: "center" }}
                 >
-                  <FeatureCard {...feature} />
-                </Box>
+                  <Box
+                    sx={{
+                      width: "100%",
+                      display: "flex",
+                      justifyContent: "center",
+                      animation: "galaxyFloat 4.5s ease-in-out infinite",
+                      animationDelay: `${(index + 2) * 0.6}s`,
+                    }}
+                  >
+                    <FeatureCard {...feature} />
+                  </Box>
+                </Reveal>
               ))}
             </Box>
           </Box>
@@ -1156,7 +1317,7 @@ export default function Home() {
             }}
           >
             {/* Left Side - Text Content (Moved more to left) */}
-            <Box sx={{ maxWidth: 460, pl: { lg: "20px" } }}>
+            <Reveal sx={{ maxWidth: 460, pl: { lg: "20px" } }}>
               <Typography
                 sx={{
                   fontFamily: '"Poppins", sans-serif',
@@ -1220,10 +1381,11 @@ export default function Home() {
               >
                 Read More
               </Button>
-            </Box>
+            </Reveal>
 
             {/* Right Side - Square Image */}
-            <Box
+            <Reveal
+              delay={150}
               sx={{
                 width: "100%",
                 maxWidth: { xs: 520, lg: 560 },
@@ -1233,7 +1395,7 @@ export default function Home() {
               <Box
                 component="img"
                 src={aboutImage}
-                alt="VDart Academy team"
+                alt="EduPlatform team"
                 sx={{
                   width: "100%",
                   height: "auto",
@@ -1244,7 +1406,7 @@ export default function Home() {
                   display: "block",
                 }}
               />
-            </Box>
+            </Reveal>
           </Box>
         </Box>
 
@@ -1258,92 +1420,94 @@ export default function Home() {
             pb: { xs: 6, md: "81px" },
           }}
         >
-          <Stack
-            direction={{ xs: "column", lg: "row" }}
-            justifyContent="space-between"
-            alignItems={{ xs: "flex-start", md: "center" }}
-            spacing={2}
-            sx={{ maxWidth: 1180, mx: "auto" }}
-          >
-            <Typography
-              sx={{
-                color: colors.white,
-                width: "100%",
-                maxWidth: { lg: 640 },
-                fontSize: { xs: "2.2rem", md: "32px" },
-                fontWeight: 500,
-                lineHeight: "150%",
-                letterSpacing: "0.8%",
-              }}
-            >
-              Recommended Courses
-              <br />
-              For You
-            </Typography>
+          <Reveal>
             <Stack
-              direction={{ xs: "column", sm: "row" }}
-              spacing={{ xs: 1.6, md: "40px" }}
-              alignItems="center"
-              sx={{
-                width: { xs: "100%", lg: "auto" },
-                justifyContent: "flex-start",
-              }}
+              direction={{ xs: "column", lg: "row" }}
+              justifyContent="space-between"
+              alignItems={{ xs: "flex-start", md: "center" }}
+              spacing={2}
+              sx={{ maxWidth: 1180, mx: "auto" }}
             >
-              <Select
-                value={courseCategory}
-                onChange={(event) => setCourseCategory(event.target.value)}
-                variant="standard"
-                disableUnderline
-                IconComponent={KeyboardArrowDown}
+              <Typography
                 sx={{
-                  minWidth: 118,
                   color: colors.white,
-                  fontFamily: '"Proxima Nova", sans-serif',
-                  fontSize: "18px",
-                  fontWeight: 400,
-                  lineHeight: "32px",
-                  "& .MuiSelect-select": {
-                    py: 0,
-                    pr: "28px !important",
-                  },
-                  "& .MuiSelect-icon": {
-                    color: colors.white,
-                    right: 0,
-                  },
-                }}
-                MenuProps={{
-                  PaperProps: {
-                    sx: {
-                      mt: 1,
-                    },
-                  },
+                  width: "100%",
+                  maxWidth: { lg: 640 },
+                  fontSize: { xs: "2.2rem", md: "32px" },
+                  fontWeight: 500,
+                  lineHeight: "150%",
+                  letterSpacing: "0.8%",
                 }}
               >
-                <MenuItem value="All">Category</MenuItem>
-                <MenuItem value="Full Stack">Full Stack</MenuItem>
-                <MenuItem value="Digital Marketing">Digital Marketing</MenuItem>
-                <MenuItem value="Data Analytics">Data Analytics</MenuItem>
-              </Select>
-              <Button
-                component={RouterLink}
-                to="/courses"
+                Recommended Courses
+                <br />
+                For You
+              </Typography>
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={{ xs: 1.6, md: "40px" }}
+                alignItems="center"
                 sx={{
-                  width: { xs: "100%", sm: 85 },
-                  minWidth: { xs: "100%", sm: 180 },
-                  height: { xs: 50, sm: 62 },
-                  borderRadius: "4px",
-                  backgroundColor: "#FCD980",
-                  color: colors.ink,
-                  textTransform: "none",
-                  fontWeight: 700,
-                  fontSize: { xs: "15px", sm: "18px" },
-                  "&:hover": { backgroundColor: "#FCD980" },
+                  width: { xs: "100%", lg: "auto" },
+                  justifyContent: "flex-start",
                 }}
               >
-                See all
-              </Button>
+                <Select
+                  value={courseCategory}
+                  onChange={(event) => setCourseCategory(event.target.value)}
+                  variant="standard"
+                  disableUnderline
+                  IconComponent={KeyboardArrowDown}
+                  sx={{
+                    minWidth: 118,
+                    color: colors.white,
+                    fontFamily: '"Proxima Nova", sans-serif',
+                    fontSize: "18px",
+                    fontWeight: 400,
+                    lineHeight: "32px",
+                    "& .MuiSelect-select": {
+                      py: 0,
+                      pr: "28px !important",
+                    },
+                    "& .MuiSelect-icon": {
+                      color: colors.white,
+                      right: 0,
+                    },
+                  }}
+                  MenuProps={{
+                    PaperProps: {
+                      sx: {
+                        mt: 1,
+                      },
+                    },
+                  }}
+                >
+                  <MenuItem value="All">Category</MenuItem>
+                  <MenuItem value="Full Stack">Full Stack</MenuItem>
+                  <MenuItem value="Digital Marketing">Digital Marketing</MenuItem>
+                  <MenuItem value="Data Analytics">Data Analytics</MenuItem>
+                </Select>
+                <Button
+                  component={RouterLink}
+                  to="/courses"
+                  sx={{
+                    width: { xs: "100%", sm: 85 },
+                    minWidth: { xs: "100%", sm: 180 },
+                    height: { xs: 50, sm: 62 },
+                    borderRadius: "4px",
+                    backgroundColor: "#FCD980",
+                    color: colors.ink,
+                    textTransform: "none",
+                    fontWeight: 700,
+                    fontSize: { xs: "15px", sm: "18px" },
+                    "&:hover": { backgroundColor: "#FCD980" },
+                  }}
+                >
+                  See all
+                </Button>
+              </Stack>
             </Stack>
-          </Stack>
+          </Reveal>
 
           <Divider
             sx={{
@@ -1366,8 +1530,10 @@ export default function Home() {
               gap: { xs: 3, md: 3 },
             }}
           >
-            {visibleCourseCards.map((course) => (
-              <CourseCard key={course.title} {...course} />
+            {visibleCourseCards.map((course, index) => (
+              <Reveal key={course.title} delay={index * 120}>
+                <CourseCard {...course} />
+              </Reveal>
             ))}
           </Box>
         </Box>
@@ -1385,7 +1551,7 @@ export default function Home() {
             alignItems: "center",
           }}
         >
-          <Box sx={{ width: "100%", maxWidth: 920, mx: "auto" }}>
+          <Reveal sx={{ width: "100%", maxWidth: 920, mx: "auto" }}>
             <Typography
               sx={{
                 width: "100%",
@@ -1441,7 +1607,7 @@ export default function Home() {
             >
               Get started
             </Button>
-          </Box>
+          </Reveal>
         </Box>
 
         <Box
@@ -1466,7 +1632,7 @@ export default function Home() {
             sx={{ maxWidth: 1100, width: "100%", gap: { lg: "50px" } }}
           >
             {/* ================= LEFT SIDE ================= */}
-            <Box sx={{ width: { xs: "100%", lg: 480 }, height: "100%" }}>
+            <Reveal sx={{ width: { xs: "100%", lg: 480 }, height: "100%" }}>
               <Stack spacing={2}>
                 {/* Visit Us */}
                 <Box
@@ -1489,11 +1655,11 @@ export default function Home() {
                   <Box>
                     <Typography sx={{ fontWeight: 600 }}>Visit Us</Typography>
                     <Typography sx={{ fontSize: "14px", color: "#6B7280" }}>
-                      Vdart, 30, Chennai - Theni Hwy,
+                      EduPlatform,
                       <br />
-                      Mannarpuram, Tiruchirappalli, Tamil Nadu
+                      Bengaluru, Karnataka
                       <br />
-                      620020
+                      678934
                     </Typography>
                   </Box>
                 </Box>
@@ -1519,7 +1685,7 @@ export default function Home() {
                   <Box>
                     <Typography sx={{ fontWeight: 600 }}>Email Us</Typography>
                     <Typography sx={{ fontSize: "14px", color: "#6B7280" }}>
-                      info@vdartacademy.com
+                      {CONTACT_EMAIL}
                     </Typography>
                   </Box>
                 </Box>
@@ -1545,7 +1711,7 @@ export default function Home() {
                   <Box>
                     <Typography sx={{ fontWeight: 600 }}>Call Us</Typography>
                     <Typography sx={{ fontSize: "14px", color: "#6B7280" }}>
-                      +91 9944548333
+                      {CONTACT_PHONE_DISPLAY}
                     </Typography>
                   </Box>
                 </Box>
@@ -1561,7 +1727,7 @@ export default function Home() {
                   <Box
                     component="img"
                     src={contactPromoImage}
-                    alt="VDart Academy"
+                    alt="EduPlatform"
                     sx={{
                       width: "100%",
                       height: "100%",
@@ -1571,10 +1737,10 @@ export default function Home() {
                   />
                 </Box>
               </Stack>
-            </Box>
+            </Reveal>
 
             {/* ================= RIGHT SIDE ================= */}
-            <Box sx={{ width: { xs: "100%", lg: 470 }, height: "100%" }}>
+            <Reveal delay={150} sx={{ width: { xs: "100%", lg: 470 }, height: "100%" }}>
               {/* Title */}
               <Typography
                 sx={{
@@ -1660,7 +1826,7 @@ export default function Home() {
                   Login
                 </Box>
               </Typography>
-            </Box>
+            </Reveal>
           </Stack>
         </Box>
 
@@ -1684,29 +1850,35 @@ export default function Home() {
               mx: "auto",
             }}
           >
-            <Typography
+            <Reveal
               sx={{
                 width: "100%",
                 mt: { xs: 2, md: 12 },
                 maxWidth: { lg: 430 },
-                display: "inline-block",
-                background: "linear-gradient(90deg, #3C19D9 0%, #200D73 68%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                fontFamily: '"Proxima Nova", sans-serif',
-                fontSize: { xs: "2.5rem", sm: "4rem", lg: "80px" },
-                fontWeight: 500,
-                lineHeight: { xs: 1.05, lg: "0.98" },
-                letterSpacing: "-1px",
-                textAlign: { xs: "center", lg: "left" },
               }}
             >
-              Frequently
-              <br />
-              Asked
-              <br />
-              Question
-            </Typography>
+              <Typography
+                sx={{
+                  width: "100%",
+                  display: "inline-block",
+                  background: "linear-gradient(90deg, #3C19D9 0%, #200D73 68%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  fontFamily: '"Proxima Nova", sans-serif',
+                  fontSize: { xs: "2.5rem", sm: "4rem", lg: "80px" },
+                  fontWeight: 500,
+                  lineHeight: { xs: 1.05, lg: "0.98" },
+                  letterSpacing: "-1px",
+                  textAlign: { xs: "center", lg: "left" },
+                }}
+              >
+                Frequently
+                <br />
+                Asked
+                <br />
+                Question
+              </Typography>
+            </Reveal>
 
             <Box
               sx={{
@@ -1964,11 +2136,11 @@ export default function Home() {
                         },
                       }}
                     >
-                      Vdart , 30, Chennai - Theni Hwy,
+                      Eduplatform ,
                       <br />
-                      Mannarpuram, Tiruchirappalli, Tamil Nadu
+                      Bengaluru, Karnataka
                       <br />
-                      620020
+                      678934
                     </Typography>
                   </Stack>
                   <Stack direction="row" spacing={1} alignItems="center">
