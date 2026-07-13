@@ -31,7 +31,7 @@ import {
 import phoneFrame from "../assets/Group 2659.png";
 import aboutImage from "../assets/unsplash_vbxyFxlgpjM.png";
 import courseAnalyticsImage from "../assets/pexels-olya-kobruseva-5561923 1 - Copy.png";
-// import logoImage from "../assets/vdartacademylogo1 3.png";
+// import logoImage from "../assets/eduplatformlogo1 3.png";
 import courseCardFrameImage from "../assets/Group 2626.png";
 import featureAnalyticsIcon from "../assets/Container.png";
 import featureBuilderIcon from "../assets/Container (1).png";
