@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link as RouterLink, useLocation } from "react-router-dom";
 import {
   Accordion,
@@ -11,6 +11,7 @@ import {
   InputBase,
   MenuItem,
   Select,
+  Skeleton,
   Stack,
   Typography,
 } from "@mui/material";
@@ -196,6 +197,13 @@ const footerQuickLinks = [
   { label: "Register", to: "/register" },
 ];
 
+const socialIconLinks = [
+  { icon: Facebook, key: "facebook", label: "Facebook" },
+  { icon: Instagram, key: "instagram", label: "Instagram" },
+  { icon: LinkedIn, key: "linkedin", label: "LinkedIn" },
+  { icon: YouTube, key: "youtube", label: "YouTube" },
+];
+
 const courseDetailsPath = (courseTitle) =>
   `/home/details?course=${encodeURIComponent(courseTitle)}`;
 
@@ -355,7 +363,46 @@ function CountUp({ value, duration = 1600 }) {
   );
 }
 
-function FeatureCard({ icon: Icon, iconSrc, title, description }) {
+// Shows a skeleton placeholder in place of an image until it has actually
+// finished loading, then cross-fades to the real image. Prevents blank
+// gaps / layout pop-in for images that load over the network.
+function ImageWithSkeleton({ src, alt, imgProps = {} }) {
+  const [loaded, setLoaded] = useState(false);
+
+  return (
+    <Box sx={{ position: "relative", width: "100%", height: "100%" }}>
+      {!loaded && (
+        <Skeleton
+          variant="rectangular"
+          animation="wave"
+          sx={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
+        />
+      )}
+      <Box
+        component="img"
+        src={src}
+        alt={alt}
+        loading="lazy"
+        onLoad={() => setLoaded(true)}
+        sx={{
+          width: "100%",
+          height: "100%",
+          display: "block",
+          opacity: loaded ? 1 : 0,
+          transition: "opacity 0.45s ease",
+          ...imgProps,
+        }}
+      />
+    </Box>
+  );
+}
+
+const FeatureCard = React.memo(function FeatureCard({
+  icon: Icon,
+  iconSrc,
+  title,
+  description,
+}) {
   return (
     <Box
       sx={{
@@ -392,6 +439,7 @@ function FeatureCard({ icon: Icon, iconSrc, title, description }) {
             component="img"
             src={iconSrc}
             alt=""
+            loading="lazy"
             sx={{ width: 48, height: 48, display: "block" }}
           />
         ) : (
@@ -419,9 +467,9 @@ function FeatureCard({ icon: Icon, iconSrc, title, description }) {
       </Typography>
     </Box>
   );
-}
+});
 
-function CourseCard({ image, title, description }) {
+const CourseCard = React.memo(function CourseCard({ image, title, description }) {
   return (
     <Box
       component={RouterLink}
@@ -442,17 +490,13 @@ function CourseCard({ image, title, description }) {
         },
       }}
     >
-      <Box
-        component="img"
-        src={image}
-        alt={title}
-        sx={{
-          width: "100%",
-          height: { xs: 220, md: 198 },
-          objectFit: "cover",
-          display: "block",
-        }}
-      />
+      <Box sx={{ width: "100%", height: { xs: 220, md: 198 } }}>
+        <ImageWithSkeleton
+          src={image}
+          alt={title}
+          imgProps={{ objectFit: "cover" }}
+        />
+      </Box>
       <Box
         sx={{
           px: { xs: 2, md: "18px" },
@@ -489,7 +533,7 @@ function CourseCard({ image, title, description }) {
       </Box>
     </Box>
   );
-}
+});
 
 export default function Home() {
   const location = useLocation();
@@ -503,29 +547,42 @@ export default function Home() {
       ? courseCards
       : courseCards.filter((course) => course.title === courseCategory);
 
-  const lockNavTarget = (sectionId) => {
+  const lockNavTarget = useCallback((sectionId) => {
     window.clearTimeout(navTargetLockTimerRef.current);
     navTargetLockRef.current = sectionId;
     navTargetLockTimerRef.current = window.setTimeout(() => {
       navTargetLockRef.current = null;
     }, 700);
-  };
+  }, []);
 
-  const handleNavSelect = (event, sectionId) => {
-    event?.preventDefault();
-    lockNavTarget(sectionId);
-    setActiveSection(sectionId);
-    scrollToSection(sectionId);
-  };
+  const handleNavSelect = useCallback(
+    (event, sectionId) => {
+      event?.preventDefault();
+      lockNavTarget(sectionId);
+      setActiveSection(sectionId);
+      scrollToSection(sectionId);
+    },
+    [lockNavTarget]
+  );
 
-  const publicHeaderNavItems = navItems.map((item) => ({
-    ...item,
-    href: `#${item.id}`,
-    onClick: (event) => handleNavSelect(event, item.id),
-  }));
+  const publicHeaderNavItems = useMemo(
+    () =>
+      navItems.map((item) => ({
+        ...item,
+        href: `#${item.id}`,
+        onClick: (event) => handleNavSelect(event, item.id),
+      })),
+    [handleNavSelect]
+  );
 
   useEffect(() => {
-    const handleScroll = () => {
+    // Throttle scroll handling to at most once per animation frame instead
+    // of running the section-detection loop (getElementById x N) on every
+    // single scroll event, which was causing unnecessary layout work.
+    let ticking = false;
+
+    const updateActiveSection = () => {
+      ticking = false;
       const headerOffset = PUBLIC_SITE_HEADER_HEIGHT + 36;
       let currentSection = "home";
 
@@ -551,7 +608,13 @@ export default function Home() {
       setActiveSection(currentSection);
     };
 
-    handleScroll();
+    const handleScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(updateActiveSection);
+    };
+
+    updateActiveSection();
     window.addEventListener("scroll", handleScroll, { passive: true });
 
     return () => {
@@ -1243,6 +1306,7 @@ export default function Home() {
                 component="img"
                 src={phoneFrame}
                 alt="Mobile app preview"
+                loading="lazy"
                 sx={{
                   gridArea: "1 / 1",
                   width: "100%",
@@ -1393,19 +1457,20 @@ export default function Home() {
               }}
             >
               <Box
-                component="img"
-                src={aboutImage}
-                alt="EduPlatform team"
                 sx={{
                   width: "100%",
-                  height: "auto",
-                  aspectRatio: "-1 / -1", // Square shape
-                  objectFit: "cover",
+                  aspectRatio: "1 / 1", // Square shape (was an invalid "-1 / -1")
                   borderRadius: "0px",
                   boxShadow: "0 12px 35px rgba(0, 0, 0, 0.09)",
-                  display: "block",
+                  overflow: "hidden",
                 }}
-              />
+              >
+                <ImageWithSkeleton
+                  src={aboutImage}
+                  alt="EduPlatform team"
+                  imgProps={{ objectFit: "cover" }}
+                />
+              </Box>
             </Reveal>
           </Box>
         </Box>
@@ -1530,11 +1595,17 @@ export default function Home() {
               gap: { xs: 3, md: 3 },
             }}
           >
-            {visibleCourseCards.map((course, index) => (
-              <Reveal key={course.title} delay={index * 120}>
-                <CourseCard {...course} />
-              </Reveal>
-            ))}
+            {visibleCourseCards.length > 0 ? (
+              visibleCourseCards.map((course, index) => (
+                <Reveal key={course.title} delay={index * 120}>
+                  <CourseCard {...course} />
+                </Reveal>
+              ))
+            ) : (
+              <Typography sx={{ color: "rgba(255,255,255,0.75)", gridColumn: "1 / -1" }}>
+                No courses found in this category yet.
+              </Typography>
+            )}
           </Box>
         </Box>
 
@@ -1724,16 +1795,10 @@ export default function Home() {
                     overflow: "hidden",
                   }}
                 >
-                  <Box
-                    component="img"
+                  <ImageWithSkeleton
                     src={contactPromoImage}
                     alt="EduPlatform"
-                    sx={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                      objectPosition: "center", // ✅ clean crop
-                    }}
+                    imgProps={{ objectFit: "cover", objectPosition: "center" }}
                   />
                 </Box>
               </Stack>
@@ -2122,8 +2187,8 @@ export default function Home() {
                     <Typography
                       component="a"
                       href={CONTACT_MAP_URL}
-                      target="_blank"
-                      rel="noreferrer"
+                      target={CONTACT_MAP_URL !== "#" ? "_blank" : undefined}
+                      rel={CONTACT_MAP_URL !== "#" ? "noreferrer" : undefined}
                       sx={{
                         fontFamily: '"Proxima Nova", sans-serif',
                         fontSize: "16px",
@@ -2241,29 +2306,33 @@ export default function Home() {
                   justifyContent: { xs: "flex-start", sm: "flex-start" },
                 }}
               >
-                {[
-                  { icon: Facebook, key: "facebook", label: "Facebook" },
-                  { icon: Instagram, key: "instagram", label: "Instagram" },
-                  { icon: LinkedIn, key: "linkedin", label: "LinkedIn" },
-                  { icon: YouTube, key: "youtube", label: "YouTube" },
-                ].map(({ icon: Icon, key, label }) => (
-                  <IconButton
-                    key={key}
-                    component="a"
-                    href={SOCIAL_LINKS[key]}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={label}
-                    sx={{
-                      width: 30,
-                      height: 30,
-                      p: 0,
-                      color: "#4B4347",
-                    }}
-                  >
-                    <Icon sx={{ fontSize: 30 }} />
-                  </IconButton>
-                ))}
+                {socialIconLinks.map(({ icon: Icon, key, label }) => {
+                  const href = SOCIAL_LINKS[key];
+                  const hasLink = Boolean(href);
+
+                  return (
+                    <IconButton
+                      key={key}
+                      component={hasLink ? "a" : "span"}
+                      href={hasLink ? href : undefined}
+                      target={hasLink ? "_blank" : undefined}
+                      rel={hasLink ? "noopener noreferrer" : undefined}
+                      aria-label={label}
+                      aria-disabled={!hasLink}
+                      sx={{
+                        width: 30,
+                        height: 30,
+                        p: 0,
+                        color: "#4B4347",
+                        opacity: hasLink ? 1 : 0.4,
+                        cursor: hasLink ? "pointer" : "default",
+                        pointerEvents: hasLink ? "auto" : "none",
+                      }}
+                    >
+                      <Icon sx={{ fontSize: 30 }} />
+                    </IconButton>
+                  );
+                })}
               </Stack>
             </Stack>
           </Box>

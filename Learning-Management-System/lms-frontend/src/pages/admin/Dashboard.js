@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Grid,
@@ -372,39 +372,80 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // Separate, non-blocking error state for background refreshes. A failed
+  // refresh must never tear down an already-loaded dashboard — it should
+  // just surface a dismissible warning, not replace the whole page with the
+  // full-screen error state (that's reserved for the initial load failing).
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState(null);
 
-  const fetchDashboardStats = useCallback(async (isMounted) => {
+  // Single shared mount flag instead of a fresh isMounted() closure created
+  // per call — avoids leaking a stale closure if the component unmounts
+  // while a manually-triggered refresh is still in flight.
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  // `silent: true` is used for background refreshes (e.g. the "Refresh
+  // Activity" button): errors go to `refreshError` and never touch the
+  // page-blocking `error`/`loading` state, so the existing dashboard stays
+  // visible even if the refresh itself fails.
+  const fetchDashboardStats = useCallback(async ({ silent = false } = {}) => {
     if (DEMO_MODE) {
-      if (isMounted()) {
+      if (isMountedRef.current) {
         setStats(DEMO_STATS);
-        setLoading(false);
+        if (silent) {
+          setRefreshError(null);
+          setRefreshing(false);
+        } else {
+          setError(null);
+          setLoading(false);
+        }
       }
       return;
     }
+
     try {
       const response = await api.get('/admin/dashboard-stats/');
-      if (isMounted()) {
+      if (isMountedRef.current) {
         setStats(response.data);
-        setError(null);
+        if (silent) setRefreshError(null);
+        else setError(null);
       }
     } catch (err) {
       console.error('Error fetching dashboard stats:', err);
-      if (isMounted()) {
-        setError('Unable to load dashboard data. Please try refreshing the page.');
+      if (isMountedRef.current) {
+        const message = 'Unable to load dashboard data. Please try refreshing the page.';
+        if (silent) setRefreshError(message);
+        else setError(message);
       }
     } finally {
-      if (isMounted()) setLoading(false);
+      if (isMountedRef.current) {
+        if (silent) setRefreshing(false);
+        else setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
-    let mounted = true;
-    const isMounted = () => mounted;
-    fetchDashboardStats(isMounted);
-    return () => {
-      mounted = false;
-    };
+    fetchDashboardStats();
   }, [fetchDashboardStats]);
+
+  // NOTE: this refetches the same latest-activity snapshot from
+  // /admin/dashboard-stats/ — there's no pagination/offset support on that
+  // endpoint, so it can only ever refresh the same "latest N" items, not
+  // append additional older ones. It's exposed as "Refresh Activity" (not
+  // "Load More") to match what it actually does; wire up real pagination
+  // here if the backend adds offset/cursor support later.
+  const handleRefreshActivity = useCallback(() => {
+    if (refreshing) return;
+    setRefreshing(true);
+    fetchDashboardStats({ silent: true });
+  }, [fetchDashboardStats, refreshing]);
 
   if (loading) {
     return (
@@ -448,8 +489,9 @@ const AdminDashboard = () => {
   // completion rate. That produced numbers with no relationship to actual
   // course-completion performance. Now we trust the API's real
   // completionRate and default to 0 (clearly "no data") rather than fabricate
-  // a number.
-  const completionRate = stats.completionRate ?? 0;
+  // a number. Clamped to 0-100 so a bad/unexpected API value can't send the
+  // CircularProgress indicator out of its valid range.
+  const completionRate = Math.min(100, Math.max(0, stats.completionRate ?? 0));
 
   return (
     <Box sx={{ p: { xs: 2, md: 3 }, bgcolor: '#f6f7fb' }}>
@@ -516,6 +558,12 @@ const AdminDashboard = () => {
 
         <Divider sx={{ mb: 3 }} />
 
+        {refreshError && (
+          <Alert severity="warning" sx={{ mb: 3 }} onClose={() => setRefreshError(null)}>
+            {refreshError}
+          </Alert>
+        )}
+
         <Grid container spacing={4}>
           {/* Latest Enrollments */}
           <Grid size={{ xs: 12, lg: 6 }}>
@@ -542,10 +590,12 @@ const AdminDashboard = () => {
                 <Button
                   fullWidth
                   variant="outlined"
-                  onClick={() => fetchDashboardStats(() => true)}
+                  onClick={handleRefreshActivity}
+                  disabled={refreshing}
+                  startIcon={refreshing ? <CircularProgress size={14} thickness={5} /> : null}
                   sx={{ mt: 1, borderRadius: '12px', borderStyle: 'dashed', textTransform: 'none', color: 'text.secondary', borderColor: 'divider' }}
                 >
-                  Load More Activity
+                  {refreshing ? 'Refreshing...' : 'Refresh Activity'}
                 </Button>
               </Box>
             ) : (

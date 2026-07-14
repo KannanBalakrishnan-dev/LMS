@@ -459,8 +459,11 @@ const AdminLayout = () => {
             background: '#fff9fa',
             color: NAV_TEXT,
             transition: 'width 0.25s ease',
+            // FIX: removed `borderRight: '1px solid #eef0f5'` — this was
+            // rendering as a visible vertical accent line/bar between the
+            // sidebar and the main content area. `border: 'none'` alone is
+            // enough now; the subtle shadow on hover-expand still applies.
             border: 'none',
-            borderRight: '1px solid #eef0f5',
             boxShadow: railHovered && !drawerOpen
               ? '4px 0 24px rgba(0,0,0,0.10)'
               : 'none',

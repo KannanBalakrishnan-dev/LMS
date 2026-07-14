@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Box, CircularProgress, Container, Stack, Typography } from '@mui/material';
+import { Box, Button, Container, Skeleton, Stack, Typography } from '@mui/material';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
 import api from '../api';
 import PublicSiteHeader, { PUBLIC_SITE_HEADER_HEIGHT } from '../components/public/PublicSiteHeader';
@@ -94,7 +94,7 @@ const courseDetailsByTitle = {
     ],
   },
   'UI/UX Design': {
-    title: 'UI \\ UX Design',
+    title: 'UI / UX Design',
     subtitle: 'Learn interface and experience design fundamentals',
     image: courseImage6,
     about: [
@@ -106,6 +106,66 @@ const courseDetailsByTitle = {
       'Create better user experiences',
       'High demand across industries',
       'Improve problem-solving and creativity',
+    ],
+  },
+  Cybersecurity: {
+    title: 'Cybersecurity',
+    subtitle: 'Protect systems, networks, and data from threats',
+    image: DEFAULT_COURSE_IMAGE,
+    about: [
+      'Cybersecurity is about protecting systems, networks, and data from unauthorized access, attacks, and damage. As more business happens online, organizations need people who can identify vulnerabilities and respond to threats before they cause harm.',
+      'You will learn network security fundamentals, common attack techniques, risk assessment, secure coding practices, and how to use tools that monitor and defend digital infrastructure.',
+    ],
+    benefitsLead: 'The benefits of learning Cybersecurity:',
+    points: [
+      'Critical, high-demand skill set',
+      'Protect organizations from real threats',
+      'Strong long-term career stability',
+    ],
+  },
+  'DevOps & Automation': {
+    title: 'DevOps & Automation',
+    subtitle: 'Streamline development, deployment, and operations',
+    image: DIGITAL_MARKETING_IMAGE,
+    about: [
+      'DevOps brings development and operations teams together to build, test, and release software faster and more reliably. It relies heavily on automation, continuous integration, and continuous delivery to reduce manual work and errors.',
+      'You will learn version control workflows, CI/CD pipelines, containerization, infrastructure as code, and monitoring practices used to keep applications running smoothly at scale.',
+    ],
+    benefitsLead: 'The benefits of learning DevOps & Automation:',
+    points: [
+      'Faster, more reliable software delivery',
+      'In-demand skills across every tech industry',
+      'Better collaboration between teams',
+    ],
+  },
+  'Mobile App Development': {
+    title: 'Mobile App Development',
+    subtitle: 'Build native and cross-platform mobile applications',
+    image: courseImage3,
+    about: [
+      'Mobile app development focuses on building applications for smartphones and tablets. It covers both native development for specific platforms and cross-platform frameworks that let you build for multiple platforms from a single codebase.',
+      'You will learn UI design for mobile, working with APIs, local storage, app performance, and how to publish apps to app stores.',
+    ],
+    benefitsLead: 'The benefits of learning Mobile App Development:',
+    points: [
+      'Build for a massive, growing mobile audience',
+      'High demand for cross-platform skills',
+      'Turn ideas into published, usable apps',
+    ],
+  },
+  'Product Management': {
+    title: 'Product Management',
+    subtitle: 'Learn to plan, prioritize, and ship successful products',
+    image: courseImage4,
+    about: [
+      'Product management sits at the intersection of business, technology, and user experience. Product managers decide what gets built, why, and in what order, working closely with design, engineering, and stakeholders.',
+      'You will learn how to gather requirements, prioritize a roadmap, write specs, run experiments, and use data to guide product decisions from idea to launch.',
+    ],
+    benefitsLead: 'The benefits of learning Product Management:',
+    points: [
+      'Bridge business goals and technical execution',
+      'Highly transferable, in-demand skill',
+      'Direct impact on product and company success',
     ],
   },
 };
@@ -142,10 +202,91 @@ const toDynamicCourseDetails = (course) => {
   };
 };
 
+const CourseDetailSkeleton = () => (
+  <Box
+    sx={{
+      display: 'flex',
+      flexDirection: { xs: 'column', md: 'row' },
+      gap: { xs: 4, md: 6.5 },
+      alignItems: 'flex-start',
+    }}
+  >
+    <Box sx={{ flex: 1, minWidth: 0 }}>
+      <Skeleton
+        variant="text"
+        width="70%"
+        sx={{ fontSize: { xs: '2.4rem', md: '3.25rem' }, transform: 'none' }}
+      />
+      <Skeleton
+        variant="text"
+        width="90%"
+        sx={{ fontSize: { xs: '0.95rem', md: '1rem' }, mt: 1, transform: 'none' }}
+      />
+      <Skeleton
+        variant="rectangular"
+        sx={{
+          width: '100%',
+          mt: { xs: 2.5, md: 3 },
+          height: { xs: 280, sm: 340, md: 440 },
+          borderRadius: '2px',
+        }}
+      />
+    </Box>
+
+    <Box sx={{ flex: 1, minWidth: 0, pt: { md: 0.25 } }}>
+      <Skeleton
+        variant="text"
+        width="60%"
+        sx={{ fontSize: { xs: '2rem', md: '2.75rem' }, transform: 'none' }}
+      />
+
+      <Box sx={{ mt: { xs: 2, md: 3 } }}>
+        {[1, 2].map((paragraphIndex) => (
+          <Stack key={`skeleton-paragraph-${paragraphIndex}`} spacing={0.75} sx={{ mb: { xs: 2.25, md: 3 } }}>
+            <Skeleton variant="text" width="100%" sx={{ fontSize: '1.04rem', transform: 'none' }} />
+            <Skeleton variant="text" width="100%" sx={{ fontSize: '1.04rem', transform: 'none' }} />
+            <Skeleton variant="text" width="75%" sx={{ fontSize: '1.04rem', transform: 'none' }} />
+          </Stack>
+        ))}
+      </Box>
+
+      <Box sx={{ mt: { xs: 3, md: 4 } }}>
+        <Skeleton variant="text" width="45%" sx={{ fontSize: '1.04rem', mb: 1.25, transform: 'none' }} />
+        <Stack spacing={0.75} sx={{ pl: '1.3rem' }}>
+          {[1, 2, 3].map((pointIndex) => (
+            <Skeleton
+              key={`skeleton-point-${pointIndex}`}
+              variant="text"
+              width={`${80 - pointIndex * 10}%`}
+              sx={{ fontSize: '1rem', transform: 'none' }}
+            />
+          ))}
+        </Stack>
+      </Box>
+    </Box>
+  </Box>
+);
+
+const CourseNotFound = () => (
+  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 10, gap: 2 }}>
+    <Typography sx={{ fontSize: '1.5rem', fontWeight: 600, color: '#2f3545' }}>
+      We couldn't find that course
+    </Typography>
+    <Typography sx={{ color: '#7b8190', textAlign: 'center', maxWidth: 420 }}>
+      The course you're looking for may have moved or no longer exists. Try browsing all
+      available courses instead.
+    </Typography>
+    <Button component={RouterLink} to="/course-details" variant="outlined" sx={{ mt: 1 }}>
+      View all courses
+    </Button>
+  </Box>
+);
+
 const HomeCourseDetails = () => {
   const location = useLocation();
   const [dynamicCourse, setDynamicCourse] = useState(null);
   const [isCourseLoading, setIsCourseLoading] = useState(false);
+  const [fetchFailed, setFetchFailed] = useState(false);
   const searchParams = new URLSearchParams(location.search);
   const courseParam = searchParams.get('course');
   const courseIdParam = searchParams.get('courseId');
@@ -156,10 +297,12 @@ const HomeCourseDetails = () => {
     const fetchDynamicCourse = async () => {
       if (!courseIdParam) {
         setDynamicCourse(null);
+        setFetchFailed(false);
         return;
       }
 
       setIsCourseLoading(true);
+      setFetchFailed(false);
       try {
         const response = await api.get(`/courses/${courseIdParam}/`);
         if (isMounted) {
@@ -169,6 +312,7 @@ const HomeCourseDetails = () => {
         console.error('Error fetching public course detail:', error);
         if (isMounted) {
           setDynamicCourse(null);
+          setFetchFailed(true);
         }
       } finally {
         if (isMounted) {
@@ -184,8 +328,28 @@ const HomeCourseDetails = () => {
     };
   }, [courseIdParam]);
 
-  const selectedCourse = dynamicCourse || (courseParam ? (courseDetailsByTitle[courseParam] || courseDetailsByTitle['Full Stack']) : null);
-  const coursesToRender = selectedCourse ? [selectedCourse] : Object.values(courseDetailsByTitle);
+  // Resolve which course(s) to render, with an explicit "not found" state
+  // instead of silently falling back to an unrelated course or dumping every course.
+  let selectedCourse = null;
+  let courseNotFound = false;
+
+  if (courseIdParam) {
+    if (dynamicCourse) {
+      selectedCourse = dynamicCourse;
+    } else if (fetchFailed && !isCourseLoading) {
+      courseNotFound = true;
+    }
+  } else if (courseParam) {
+    if (courseDetailsByTitle[courseParam]) {
+      selectedCourse = courseDetailsByTitle[courseParam];
+    } else {
+      courseNotFound = true;
+    }
+  }
+
+  const coursesToRender = selectedCourse
+    ? [selectedCourse]
+    : (!courseIdParam && !courseParam ? Object.values(courseDetailsByTitle) : []);
 
   return (
     <Box
@@ -258,10 +422,9 @@ const HomeCourseDetails = () => {
         }}
       >
         {isCourseLoading ? (
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 10, gap: 2 }}>
-            <CircularProgress />
-            <Typography sx={{ color: '#5e6f88' }}>Loading course details...</Typography>
-          </Box>
+          <CourseDetailSkeleton />
+        ) : courseNotFound ? (
+          <CourseNotFound />
         ) : (
           coursesToRender.map((course, idx) => {
             const aboutParagraphs = Array.isArray(course.about)
@@ -274,7 +437,7 @@ const HomeCourseDetails = () => {
 
             return (
               <Box
-                key={course.title}
+                key={`${course.title}-${idx}`}
                 sx={{
                   display: 'flex',
                   flexDirection: { xs: 'column', md: 'row' },
@@ -373,9 +536,9 @@ const HomeCourseDetails = () => {
                       ) : null}
 
                       <Box component="ol" sx={{ m: 0, pl: '1.3rem', color: '#7b8190' }}>
-                        {coursePoints.map((point) => (
+                        {coursePoints.map((point, pointIndex) => (
                           <Typography
-                            key={point}
+                            key={`${course.title}-point-${pointIndex}`}
                             component="li"
                             sx={{
                               fontSize: { xs: '0.98rem', md: '1rem' },
@@ -401,4 +564,3 @@ const HomeCourseDetails = () => {
 };
 
 export default HomeCourseDetails;
-

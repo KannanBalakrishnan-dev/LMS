@@ -50,17 +50,22 @@ const Login = () => {
     });
     const [showPassword, setShowPassword] = useState(false);
     const { user: authUser, setUser, login } = useAuth();
-    const [error, setError] = useState('');
+    // { message, severity } — single source of truth for the inline form error,
+    // instead of a raw string plus a duplicated regex re-run at render time.
+    const [formError, setFormError] = useState(null);
     const [popup, setPopup] = useState({ open: false, message: '', severity: 'info' });
     const [loading, setLoading] = useState(false);
+    const [googleLoading, setGoogleLoading] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
-    const [acceptTerms, setAcceptTerms] = useState(false);
+    // NOTE: currently just a UI checkbox — not yet wired to persistence/session
+    // length. Renamed from the old `acceptTerms` (a mismatched leftover name)
+    // to reflect what the label actually says.
+    const [rememberMe, setRememberMe] = useState(false);
     const [isOnline, setIsOnline] = useState(
         typeof navigator === 'undefined' ? true : navigator.onLine
     );
     const googleAuth = getGoogleAuthAvailability({ isOnline });
-    const loginAttempted = React.useRef(false);
 
     // Only redirect if user is already logged in on mount, or after a login attempt
     useEffect(() => {
@@ -70,13 +75,35 @@ const Login = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [authUser]);
 
-    // Set base page colors for the login screen.
+    // Set base page colors for the login screen and lock body scroll while
+    // this screen is mounted, restoring everything on unmount so other pages
+    // don't inherit these overrides.
     useEffect(() => {
-      document.body.style.setProperty('--bg', '#f4f4f7');
-      document.body.style.setProperty('--text', '#181a20');
-      document.body.style.setProperty('--toggle-bg', '#fff');
-      document.body.style.background = '#f4f4f7';
-      document.body.style.color = '#181a20';
+        const bodyStyle = document.body.style;
+        const previous = {
+            bg: bodyStyle.getPropertyValue('--bg'),
+            text: bodyStyle.getPropertyValue('--text'),
+            toggleBg: bodyStyle.getPropertyValue('--toggle-bg'),
+            background: bodyStyle.background,
+            color: bodyStyle.color,
+            overflow: bodyStyle.overflow,
+        };
+
+        bodyStyle.setProperty('--bg', '#f4f4f7');
+        bodyStyle.setProperty('--text', '#181a20');
+        bodyStyle.setProperty('--toggle-bg', '#fff');
+        bodyStyle.background = '#f4f4f7';
+        bodyStyle.color = '#181a20';
+        bodyStyle.overflow = 'hidden';
+
+        return () => {
+            bodyStyle.setProperty('--bg', previous.bg);
+            bodyStyle.setProperty('--text', previous.text);
+            bodyStyle.setProperty('--toggle-bg', previous.toggleBg);
+            bodyStyle.background = previous.background;
+            bodyStyle.color = previous.color;
+            bodyStyle.overflow = previous.overflow;
+        };
     }, []);
 
     useEffect(() => {
@@ -94,13 +121,6 @@ const Login = () => {
     }, [location.pathname, location.state, navigate]);
 
     useEffect(() => {
-        document.body.style.overflow = 'hidden';
-        return () => {
-            document.body.style.overflow = '';
-        };
-    }, []);
-
-    useEffect(() => {
         const handleOnline = () => setIsOnline(true);
         const handleOffline = () => setIsOnline(false);
 
@@ -113,11 +133,10 @@ const Login = () => {
         };
     }, []);
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
-        setError('');
+        setFormError(null);
         setLoading(true);
-        loginAttempted.current = true;
 
         try {
             await login(formData);
@@ -161,20 +180,21 @@ const Login = () => {
                 ? 'Your account is pending admin approval. Please wait for an admin to approve your account before logging in.'
                 : message;
 
-            setError(friendlyMsg);
-            setPopup({
-                open: true,
-                severity: isInactiveAccount ? 'info' : 'error',
+            // Shown once, inline, right above the form — no need to also pop a
+            // Snackbar with the same text.
+            setFormError({
                 message: friendlyMsg,
+                severity: isInactiveAccount ? 'info' : 'error',
             });
         } finally {
             setLoading(false);
         }
-    };
+    }, [formData, login]);
 
     // Google Sign-In logic
     const handleGoogleResponse = useCallback(async (response) => {
         const token = response.credential;
+        setGoogleLoading(true);
 
         try {
             const res = await fetch(`${API_BASE_URL}/google/login/`, {
@@ -186,7 +206,11 @@ const Login = () => {
             const data = await res.json();
 
             if (!res.ok) {
-                alert(data.detail || data.error || "Google login failed");
+                setPopup({
+                    open: true,
+                    severity: 'error',
+                    message: data.detail || data.error || 'Google login failed',
+                });
                 return;
             }
 
@@ -203,13 +227,17 @@ const Login = () => {
                     Authorization: `Bearer ${accessToken}`,
                 },
             });
-            
+
             if (!userRes.ok) {
                 const userErr = await userRes.json().catch(() => ({}));
-                alert(userErr.detail || userErr.error || "Failed to fetch user profile.");
+                setPopup({
+                    open: true,
+                    severity: 'error',
+                    message: userErr.detail || userErr.error || 'Failed to fetch user profile.',
+                });
                 return;
             }
-            
+
             const userData = await userRes.json();
 
             setUser(userData);
@@ -222,7 +250,15 @@ const Login = () => {
 
         } catch (error) {
             console.error("Error during Google Sign-In:", error);
-            alert("An error occurred during Google Sign-In.");
+            setPopup({
+                open: true,
+                severity: 'error',
+                message: isNetworkConnectionError(error)
+                    ? 'Unable to reach the server. Check your internet connection and try again.'
+                    : 'An error occurred during Google Sign-In. Please try again.',
+            });
+        } finally {
+            setGoogleLoading(false);
         }
     }, [navigate, setUser]);
 
@@ -234,24 +270,25 @@ const Login = () => {
         });
     }, []);
 
-    const handleChange = (e) => {
-        setFormData({
-            ...formData,
-            [e.target.name]: e.target.value,
-        });
-    };
+    const handleChange = useCallback((e) => {
+        const { name, value } = e.target;
+        setFormData((prev) => ({
+            ...prev,
+            [name]: value,
+        }));
+    }, []);
 
-    const handleClickShowPassword = () => {
-        setShowPassword(!showPassword);
-    };
+    const handleClickShowPassword = useCallback(() => {
+        setShowPassword((prev) => !prev);
+    }, []);
 
-    const handleGoogleButtonClick = () => {
+    const handleGoogleButtonClick = useCallback(() => {
         setPopup({
             open: true,
             severity: googleAuth.reason === 'origin_not_allowed' || googleAuth.reason === 'disabled' ? 'info' : 'warning',
             message: googleAuth.message,
         });
-    };
+    }, [googleAuth.reason, googleAuth.message]);
 
     return (
         <Box
@@ -400,9 +437,9 @@ const Login = () => {
                             Enter your Credentials to access your account
                         </Typography>
 
-                        {error && (
-                            <Alert severity={/pending|approval|administrator|get access/i.test(error) ? 'info' : 'error'} sx={{ mb: 2, borderRadius: 1.5 }}>
-                                {error}
+                        {formError && (
+                            <Alert severity={formError.severity} sx={{ mb: 2, borderRadius: 1.5 }}>
+                                {formError.message}
                             </Alert>
                         )}
 
@@ -445,7 +482,7 @@ const Login = () => {
                                         '&.Mui-focused fieldset': { borderColor: '#ffffff' },
                                     },
                                     '& .MuiInputBase-input': {
-                                        fontSize: '10px',
+                                        fontSize: '15px',
                                         fontWeight: 500,
                                         backgroundColor: 'transparent !important',
                                         boxShadow: 'none !important',
@@ -480,6 +517,7 @@ const Login = () => {
                                 fullWidth
                                 required
                                 size="small"
+                                autoComplete="current-password"
                                 InputProps={{
                                     endAdornment: (
                                         <InputAdornment position="end">
@@ -502,7 +540,7 @@ const Login = () => {
                                         '&.Mui-focused fieldset': { borderColor: '#ffffff' },
                                     },
                                     '& .MuiInputBase-input': {
-                                        fontSize: '10px',
+                                        fontSize: '15px',
                                         fontWeight: 500,
                                         backgroundColor: 'transparent !important',
                                         boxShadow: 'none !important',
@@ -533,8 +571,8 @@ const Login = () => {
                                     control={
                                         <input
                                             type="checkbox"
-                                            checked={acceptTerms}
-                                            onChange={(e) => setAcceptTerms(e.target.checked)}
+                                            checked={rememberMe}
+                                            onChange={(e) => setRememberMe(e.target.checked)}
                                             style={{ marginRight: 6 }}
                                         />
                                     }
@@ -603,15 +641,29 @@ const Login = () => {
 
                         <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
                             {googleAuth.available ? (
-                                <GoogleLogin
-                                    onSuccess={handleGoogleResponse}
-                                    onError={handleGoogleError}
-                                    theme="outline"
-                                    size="large"
-                                    text="continue_with"
-                                    shape="rectangular"
-                                    width="260"
-                                />
+                                googleLoading ? (
+                                    <Box
+                                        sx={{
+                                            minWidth: 260,
+                                            height: 40,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                        }}
+                                    >
+                                        <CircularProgress size={22} sx={{ color: '#ffffff' }} />
+                                    </Box>
+                                ) : (
+                                    <GoogleLogin
+                                        onSuccess={handleGoogleResponse}
+                                        onError={handleGoogleError}
+                                        theme="outline"
+                                        size="large"
+                                        text="continue_with"
+                                        shape="rectangular"
+                                        width="260"
+                                    />
+                                )
                             ) : (
                                 <Button
                                     variant="contained"
