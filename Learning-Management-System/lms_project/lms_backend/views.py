@@ -4025,3 +4025,101 @@ def get_student_feedback(request):
             {"error": f"Failed to fetch feedback: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+        
+        
+        
+        
+        # ============================
+# Add these imports near the top of views.py if not already present
+# ============================
+# from rest_framework.views import APIView
+# from rest_framework.permissions import IsAuthenticated
+# from rest_framework.response import Response
+# from django.utils import timezone
+# from django.contrib.auth.password_validation import validate_password
+# from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
+# from .serializers import UserProfileSerializer, UserSettingsSerializer
+
+
+# ============================
+# User Profile View — GET/PATCH /auth/user/profile/
+# ============================
+class UserProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response(UserProfileSerializer(request.user).data)
+
+    def patch(self, request):
+        serializer = UserProfileSerializer(request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+
+# ============================
+# User Settings View — GET/PATCH /auth/user/settings/
+# ============================
+class UserSettingsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response(UserSettingsSerializer(request.user).data)
+
+    def patch(self, request):
+        serializer = UserSettingsSerializer(request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+
+# ============================
+# Sign Out All Devices — POST /auth/sign-out-all-devices/
+# Requires 'rest_framework_simplejwt.token_blacklist' in INSTALLED_APPS
+# and BLACKLIST_AFTER_ROTATION=True in SIMPLE_JWT settings.
+# ============================
+class SignOutAllDevicesView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        tokens = OutstandingToken.objects.filter(user=request.user)
+        for token in tokens:
+            BlacklistedToken.objects.get_or_create(token=token)
+        return Response({'detail': 'Signed out of all devices.'}, status=200)
+
+
+# ============================
+# Change Password — POST /auth/change-password/
+# Stamps password_updated_at so UserProfile.js / UserSettings.js can display it.
+# NOTE: if you already have a working change-password view elsewhere in this
+# file, delete this one and instead just add the two lines marked below
+# to your existing view.
+# ============================
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        current_password = request.data.get('current_password')
+        new_password = request.data.get('new_password')
+
+        if not current_password or not new_password:
+            return Response(
+                {'detail': 'Both current_password and new_password are required.'},
+                status=400,
+            )
+
+        if not user.check_password(current_password):
+            return Response({'detail': 'Current password is incorrect.'}, status=400)
+
+        try:
+            validate_password(new_password, user=user)
+        except Exception as e:
+            return Response({'detail': list(e.messages)}, status=400)
+
+        user.set_password(new_password)
+        # --- these two lines are the part to add to an existing view ---
+        user.password_updated_at = timezone.now()
+        user.save(update_fields=['password', 'password_updated_at'])
+        # -----------------------------------------------------------------
+        return Response({'detail': 'Password changed successfully.'}, status=200)

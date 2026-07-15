@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
+import { Link as RouterLink } from 'react-router-dom';
 import {
   Grid,
   Paper,
@@ -208,7 +209,10 @@ const UserSettings = () => {
     };
   }, [fetchSettings]);
 
-  const persistField = (field, value) => {
+  // Persists a single field change to the backend. On failure (other than a
+  // 404, which just means the endpoint isn't built yet), the field is rolled
+  // back to its previous value so the UI never lies about what was saved.
+  const persistField = (field, value, previousValue) => {
     if (DEMO_MODE) return;
     setSaveState('saving');
     api
@@ -225,20 +229,22 @@ const UserSettings = () => {
         } else {
           console.error('Error updating setting:', err);
           setSaveState('idle');
-          showToast('Unable to save that change. Please try again.', 'error');
+          setForm((prev) => ({ ...prev, [field]: previousValue }));
+          showToast('Unable to save that change. Reverted.', 'error');
         }
       });
   };
 
   const handleToggle = (field) => (event) => {
     const value = event.target.checked;
+    const previousValue = form[field];
     setForm((prev) => ({ ...prev, [field]: value }));
     if (DEMO_MODE) {
       setSaveState('saved');
       setTimeout(() => setSaveState('idle'), 1200);
       return;
     }
-    persistField(field, value);
+    persistField(field, value, previousValue);
   };
 
   // ---- Email change flow ----
@@ -410,7 +416,13 @@ const UserSettings = () => {
       {/* Header */}
       <Box sx={{ mb: 3 }}>
         <Breadcrumbs sx={{ mb: 0.5, fontSize: 12 }}>
-          <MuiLink underline="hover" color="text.secondary" href="/dashboard" sx={{ fontSize: 12, fontWeight: 600 }}>
+          <MuiLink
+            component={RouterLink}
+            to="/dashboard"
+            underline="hover"
+            color="text.secondary"
+            sx={{ fontSize: 12, fontWeight: 600 }}
+          >
             DASHBOARD
           </MuiLink>
           <Typography sx={{ fontSize: 12, fontWeight: 700, color: 'primary.main' }}>SETTINGS</Typography>

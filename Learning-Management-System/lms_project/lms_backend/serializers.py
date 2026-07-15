@@ -19,12 +19,12 @@ User = get_user_model()
 # ============================
 class TeamSerializer(serializers.ModelSerializer):
     members_count = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Team
         fields = ('id', 'name', 'description', 'members_count', 'created_at', 'is_active')
         read_only_fields = ('created_at',)
-    
+
     def get_members_count(self, obj):
         return obj.user_set.count()
 
@@ -231,7 +231,7 @@ class VideoSerializer(serializers.ModelSerializer):
 
     def get_has_quiz(self, obj):
         return Quiz.objects.filter(video=obj).exists()
-    
+
     def get_quiz_id(self, obj):
         quiz = Quiz.objects.filter(video=obj).first()
         return quiz.id if quiz else None
@@ -266,7 +266,7 @@ class VideoSerializer(serializers.ModelSerializer):
             bool(instance.video_file and instance.video_file.name and serializer._media_exists(instance.video_file))
             or bool(instance.pdf_file and instance.pdf_file.name and serializer._media_exists(instance.pdf_file))
         )
-    
+
     def validate(self, data):
         video = data.get('video_file')
         pdf = data.get('pdf_file')
@@ -310,6 +310,7 @@ class CourseSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data['created_by'] = self.context['request'].user
         return super().create(validated_data)
+
     def get_enrolled_count(self, obj):
         return obj.enrollment_set.count()
 
@@ -438,7 +439,7 @@ class CertificateSerializer(serializers.ModelSerializer):
     certificate_uuid = serializers.CharField(read_only=True)
     user = UserSerializer(read_only=True)
     course = CourseSerializer(read_only=True)
-    
+
     class Meta:
         model = Certificate
         fields = (
@@ -588,7 +589,7 @@ class NotificationSerializer(serializers.ModelSerializer):
     def get_notification_type(self, obj):
         """Determine notification type based on message content"""
         message = obj.message.lower()
-        
+
         if 'student registration request' in message:
             return 'STUDENT_REGISTRATION_REQUEST'
         if 'course enrollment request' in message:
@@ -625,7 +626,7 @@ class NotificationSerializer(serializers.ModelSerializer):
         """Return navigation data based on notification type and user type"""
         notification_type = self.get_notification_type(obj)
         user_type = obj.user.user_type if obj.user else 'STUDENT'
-        
+
         # Admin/Staff navigation paths
         if user_type in ['ADMIN', 'STAFF']:
             if notification_type in ['DELETE_COURSE_REQUEST', 'DELETE_VIDEO_REQUEST', 'DELETE_QUIZ_REQUEST', 'DELETE_CATEGORY_REQUEST', 'DELETE_TEAM_REQUEST', 'DELETE_USER_REQUEST', 'REQUEST_RESPONSE', 'REQUEST_UNDONE', 'STUDENT_REGISTRATION_REQUEST', 'COURSE_ENROLLMENT_REQUEST']:
@@ -672,9 +673,9 @@ class NotificationSerializer(serializers.ModelSerializer):
                 }
             else:
                 return {
-                'path': '/',
-                'title': 'Dashboard'
-            }
+                    'path': '/',
+                    'title': 'Dashboard'
+                }
 
 
 # ============================
@@ -684,21 +685,119 @@ class FeedbackSerializer(serializers.ModelSerializer):
     user_username = serializers.SerializerMethodField()
     user_profile_picture = serializers.SerializerMethodField()
     course_title = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Feedback
         fields = (
-            'id', 'user', 'user_username', 'user_profile_picture', 
-            'course', 'course_title', 'message', 'rating', 
+            'id', 'user', 'user_username', 'user_profile_picture',
+            'course', 'course_title', 'message', 'rating',
             'created_at', 'is_read'
         )
         read_only_fields = ('created_at',)
-    
+
     def get_user_username(self, obj):
         return obj.user.username if obj.user else None
-    
+
     def get_user_profile_picture(self, obj):
         return obj.user.profile_picture if obj.user else None
-    
+
     def get_course_title(self, obj):
         return obj.course.title if obj.course else None
+
+
+# ============================
+# User Profile Serializer (for UserProfile.js — /auth/user/profile/)
+# ============================
+class UserProfileSerializer(serializers.ModelSerializer):
+    fullName = serializers.SerializerMethodField()
+    phone = serializers.CharField(source='mobile', required=False, allow_blank=True, allow_null=True)
+    avatarUrl = serializers.URLField(source='profile_picture', required=False, allow_null=True)
+    department = serializers.SerializerMethodField()
+    role = serializers.SerializerMethodField()
+    memberSince = serializers.DateTimeField(source='date_joined', read_only=True)
+    isActive = serializers.BooleanField(source='is_active', read_only=True)
+    passwordUpdatedAt = serializers.DateTimeField(source='password_updated_at', read_only=True)
+    twoFactorEnabled = serializers.BooleanField(source='otp_enabled', required=False)
+
+    class Meta:
+        model = User
+        fields = (
+            'fullName', 'email', 'phone', 'department', 'role',
+            'bio', 'avatarUrl', 'memberSince', 'isActive', 'passwordUpdatedAt',
+            'twoFactorEnabled',
+        )
+
+    def get_fullName(self, obj):
+        return f"{obj.first_name} {obj.last_name}".strip() or obj.username
+
+    def get_department(self, obj):
+        return obj.team.name if obj.team else ''
+
+    def get_role(self, obj):
+        return obj.user_type.capitalize() if obj.user_type else ''
+
+    def update(self, instance, validated_data):
+        # 'mobile', 'profile_picture', and 'otp_enabled' arrive here because
+        # of the source= mapping declared on their fields above.
+        for field in ['email', 'bio', 'mobile', 'profile_picture', 'otp_enabled']:
+            if field in validated_data:
+                setattr(instance, field, validated_data[field])
+        instance.save()
+        return instance
+
+
+# ============================
+# User Settings Serializer (for UserSettings.js — /auth/user/settings/)
+# ============================
+class UserSettingsSerializer(serializers.ModelSerializer):
+    passwordUpdatedAt = serializers.DateTimeField(source='password_updated_at', read_only=True)
+    otpEnabled = serializers.BooleanField(source='otp_enabled', required=False)
+    inAppNotifications = serializers.BooleanField(source='in_app_notifications', required=False)
+    weeklyProgressEmails = serializers.BooleanField(source='weekly_progress_emails', required=False)
+    productAnnouncements = serializers.BooleanField(source='product_announcements', required=False)
+    showProfileToRecruiters = serializers.BooleanField(source='show_profile_to_recruiters', required=False)
+    showEmailOnProfile = serializers.BooleanField(source='show_email_on_profile', required=False)
+    showProjectPortfolio = serializers.BooleanField(source='show_project_portfolio', required=False)
+    showPhoneOnProfile = serializers.BooleanField(source='show_phone_on_profile', required=False)
+    showWorkExperience = serializers.BooleanField(source='show_work_experience', required=False)
+    showEducation = serializers.BooleanField(source='show_education', required=False)
+    name = serializers.SerializerMethodField()
+    domain = serializers.SerializerMethodField()
+    position = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = (
+            'email', 'passwordUpdatedAt', 'otpEnabled', 'inAppNotifications',
+            'weeklyProgressEmails', 'productAnnouncements', 'showProfileToRecruiters',
+            'showEmailOnProfile', 'showProjectPortfolio', 'showPhoneOnProfile',
+            'showWorkExperience', 'showEducation', 'name', 'domain', 'position',
+        )
+
+    def get_name(self, obj):
+        return f"{obj.first_name} {obj.last_name}".strip() or obj.username
+
+    def get_domain(self, obj):
+        return obj.team.name if obj.team else ''
+
+    def get_position(self, obj):
+        return obj.user_type.capitalize() if obj.user_type else ''
+
+    def validate_email(self, value):
+        qs = User.objects.filter(email__iexact=value).exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError('This email is already in use.')
+        return value
+
+    def update(self, instance, validated_data):
+        settings_fields = [
+            'email', 'otp_enabled', 'in_app_notifications', 'weekly_progress_emails',
+            'product_announcements', 'show_profile_to_recruiters', 'show_email_on_profile',
+            'show_project_portfolio', 'show_phone_on_profile', 'show_work_experience',
+            'show_education',
+        ]
+        for field in settings_fields:
+            if field in validated_data:
+                setattr(instance, field, validated_data[field])
+        instance.save()
+        return instance

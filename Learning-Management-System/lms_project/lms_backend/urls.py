@@ -7,7 +7,11 @@ from .views import (
     send_otp,
     verify_otp_view,
     google_login,
-    ai_chat
+    ai_chat,
+    UserProfileView,
+    UserSettingsView,
+    SignOutAllDevicesView,
+    ChangePasswordView,
 )
 
 
@@ -76,6 +80,34 @@ urlpatterns = [
     ),
 
 
+    # =====================
+    # User Profile / Settings / Security
+    # =====================
+
+    path(
+        'auth/user/profile/',
+        UserProfileView.as_view(),
+        name='user-profile'
+    ),
+
+    path(
+        'auth/user/settings/',
+        UserSettingsView.as_view(),
+        name='user-settings'
+    ),
+
+    path(
+        'auth/sign-out-all-devices/',
+        SignOutAllDevicesView.as_view(),
+        name='sign-out-all-devices'
+    ),
+
+    path(
+        'auth/change-password/',
+        ChangePasswordView.as_view(),
+        name='change-password'
+    ),
+
 
     # =====================
     # Certificate
@@ -102,8 +134,7 @@ urlpatterns = [
     ),
 
 
-# urls.py
-path('admin/profile/', views.admin_profile, name='admin-profile'),
+    path('admin/profile/', views.admin_profile, name='admin-profile'),
 
 
     # =====================
