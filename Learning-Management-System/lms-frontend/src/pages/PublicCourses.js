@@ -13,6 +13,8 @@ import { Facebook, Instagram, LinkedIn, YouTube } from '@mui/icons-material';
 import PublicSiteHeader, { PUBLIC_SITE_HEADER_HEIGHT } from '../components/public/PublicSiteHeader';
 import { createPublicSiteHeaderNavItems } from '../components/public/publicSiteNav';
 
+import coursePlaceholder from "../assets/pexels-olya-kobruseva-5561923 1 - Copy.png";
+
 import logoImage from '../assets/vdartacademylogo1 3.png';
 import courseImage3 from '../assets/pexels-olya-kobruseva-5561923 1 - Copy.png';
 import courseImage4 from '../assets/pexels-shane-aldendorff-924676 1.png';
@@ -43,31 +45,37 @@ const publicHeaderNavItems = createPublicSiteHeaderNavItems();
 
 const courseCards = [
     {
+         id: 1,
         title: 'Full Stack',
         subtitle: 'Master End-to-End Web Application Development',
         image: courseImage1,
     },
     {
+         id: 2,
         title: 'Digital Marketing',
         subtitle: 'Build High-Impact Campaigns with Digital Strategies',
         image: courseImage2,
     },
     {
+         id: 3,
         title: 'Data Analytics',
         subtitle: 'Turn Data into Actionable Business insights and Drive smarter Business Decisions',
         image: courseImage3,
     },
     {
+         id: 4,
         title: 'AI/ML',
         subtitle: 'Build Intelligent Systems Using AI and Machine Learning',
         image: courseImage4,
     },
     {
+         id: 5,
         title: 'Cloud Computing',
         subtitle: 'Learn to Build, Deploy, and Scale Applications on the Cloud',
         image: courseImage5,
     },
     {
+         id: 6,
         title: 'UI/UX Design',
         subtitle: 'Create User-Centered Designs and Seamless Experiences in the world of UI/UX design',
         image: courseImage6,
@@ -87,17 +95,20 @@ const socialButtonSx = {
 };
 
 const socialLinks = {
-    Facebook: 'https://www.facebook.com/VDartAcademy',
-    Instagram: 'https://www.instagram.com/vdart_academy',
-    LinkedIn: 'https://www.linkedin.com/company/vdart-academy',
-    YouTube: 'https://youtube.com/@vdartacademy',
+    Facebook: '#',
+    Instagram: '#',
+    LinkedIn: '#',
+    YouTube: '#',
 };
 
 const PublicCourses = () => {
     const [searchTerm, setSearchTerm] = useState('');
 
     const filteredCourses = useMemo(() => {
-        const term = searchTerm.trim().toLowerCase();
+        const term = searchTerm
+  .trim()
+  .replace(/\s+/g, " ")
+  .toLowerCase();
         if (!term) return courseCards;
         return courseCards.filter((course) => {
             const title = course.title.toLowerCase();
@@ -257,9 +268,9 @@ const PublicCourses = () => {
                     >
                         {filteredCourses.map((course) => (
                             <Card
-                                key={course.title}
+                                key={course.id}
                                 component={RouterLink}
-                                to={`/home/details?course=${encodeURIComponent(course.title)}`}
+                               to={`/home/details/${course.id}`}
                                 sx={{
                                     textDecoration: 'none',
                                     width: '100%',
@@ -294,9 +305,10 @@ const PublicCourses = () => {
                                         borderTopLeftRadius: '22px',
                                         borderTopRightRadius: '22px',
                                     }}
-                                    onError={(e) => {
-                                        e.target.src = 'https://via.placeholder.com/400x240?text=Course+Image';
-                                    }}
+                                   onError={(e) => {
+    e.currentTarget.onerror = null; // prevent infinite loop
+    e.currentTarget.src = coursePlaceholder;
+}}
                                 />
                                 <Box
                                     sx={{

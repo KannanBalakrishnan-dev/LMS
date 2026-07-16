@@ -109,7 +109,7 @@ function AppContent() {
                             <Route path="/" element={<PublicHomeRoute />} />
                             <Route path="/home" element={<Navigate to="/" replace />} />
                             <Route path="/courses" element={<PublicCourses />} />
-                            <Route path="/home/details" element={<HomeCourseDetails />} />
+                            <Route path="/home/details/:courseId" element={<HomeCourseDetails />} />
                             <Route path="/verify-certificate" element={<CertificateVerification />} />
                             <Route path="/verify-certificate/:certificateUuid" element={<CertificateVerification />} />
                             <Route path="/login" element={<Login />} />

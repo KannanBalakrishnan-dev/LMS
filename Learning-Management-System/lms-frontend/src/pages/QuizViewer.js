@@ -77,7 +77,6 @@ const QuizViewer = ({ quizId, quizData, onQuizPassed, onSpecialRedirect, lessonI
   // Remove: const lessonIndex = quizData?.lesson_index;
 
   useEffect(() => {
-
     if (quizData?.type === 'result') {
       return;
     }
@@ -109,130 +108,80 @@ const QuizViewer = ({ quizId, quizData, onQuizPassed, onSpecialRedirect, lessonI
     setAnswers((prev) => ({ ...prev, [questionId]: choiceIndex }));
   };
 
-  const handleSubmit = async () => {
+  const submitQuiz = useCallback(async (timedOut = false) => {
     const allAnswered =
       quiz?.questions?.every((q) => answers[q.id] !== undefined) || false;
 
-    if (!allAnswered) {
-      alert("Please answer all questions before submitting.");
+    if (!timedOut && !allAnswered) {
+      alert('Please answer all questions before submitting.');
       return;
     }
 
     setSubmitting(true);
+
     try {
       const res = await api.post(`/quizzes/${quizId}/attempt/`, {
         answers,
-        timed_out: false,
-      });
-      setResult(res.data);
-
-      if (res.data.is_passed) {
-        onQuizPassed?.();
-      }
-    } catch (err) {
-      if (err.response && err.response.status === 403) {
-        const data = err.response.data;
-
-        if (data.reset_course) {
-          if (onSpecialRedirect) {
-            onSpecialRedirect({
-              type: "RESET_COURSE",
-              redirectLessonIndex: data.redirect_lesson_index || 0,
-            });
-          }
-          return;
-        }
-
-        if (data.redirect_to_video && data.video_id) {
-          if (onSpecialRedirect) {
-            onSpecialRedirect({
-              type: "REDIRECT_TO_VIDEO",
-              videoId: data.video_id,
-            });
-          }
-          return;
-        }
-
-        if (data.locked) {
-          alert("This quiz is locked until you rewatch the video.");
-          return;
-        }
-      }
-
-      if (err.response?.data?.error) {
-        alert(err.response.data.error);
-      } else {
-        alert("Submission failed.");
-      }
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleAutoSubmit = useCallback(async ({ timedOut }) => {
-    const allAnswered = quiz?.questions?.every((q) => answers[q.id] !== undefined) || false;
-
-    setSubmitting(true);
-    try {
-      const res = await api.post(`/quizzes/${quizId}/attempt/`, {
-        answers,
-        timed_out: !!timedOut,
+        timed_out: timedOut,
       });
 
       if (timedOut && !allAnswered) {
-        // Force fail due to timeout on UI even if backend score passes
-        setResult({ ...res.data, is_passed: false, reason: 'TIMEOUT' });
-        return;
-      }
+        setResult({
+          ...res.data,
+          is_passed: false,
+          reason: 'TIMEOUT',
+        });
+      } else {
+        setResult(res.data);
 
-      setResult(res.data);
-      if (res.data.is_passed) {
-        onQuizPassed?.();
+        if (res.data.is_passed) {
+          onQuizPassed?.();
+        }
       }
     } catch (err) {
-      if (err.response && err.response.status === 403) {
+      if (err.response?.status === 403) {
         const data = err.response.data;
 
         if (data.reset_course) {
-          if (onSpecialRedirect) {
-            onSpecialRedirect({
-              type: "RESET_COURSE",
-              redirectLessonIndex: data.redirect_lesson_index || 0,
-            });
-          }
+          onSpecialRedirect?.({
+            type: 'RESET_COURSE',
+            redirectLessonIndex: data.redirect_lesson_index || 0,
+          });
           return;
         }
 
         if (data.redirect_to_video && data.video_id) {
-          if (onSpecialRedirect) {
-            onSpecialRedirect({
-              type: "REDIRECT_TO_VIDEO",
-              videoId: data.video_id,
-            });
-          }
+          onSpecialRedirect?.({
+            type: 'REDIRECT_TO_VIDEO',
+            videoId: data.video_id,
+          });
           return;
         }
 
         if (data.locked) {
-          alert("This quiz is locked until you rewatch the video.");
+          alert('This quiz is locked until you rewatch the video.');
           return;
         }
       }
 
-      if (err.response?.data?.error) {
-        alert(err.response.data.error);
-      } else {
-        alert("Submission failed.");
-      }
+      alert(err.response?.data?.error || 'Submission failed.');
     } finally {
       setSubmitting(false);
     }
-  }, [answers, onQuizPassed, onSpecialRedirect, quiz?.questions, quizId]);
+  }, [quiz, answers, quizId, onQuizPassed, onSpecialRedirect]);
+
+  const handleSubmit = async () => {
+    submitQuiz(false);
+  };
+
+  const handleAutoSubmit = useCallback(() => {
+    submitQuiz(true);
+  }, [submitQuiz]);
 
   const handleTimeExpired = useCallback(() => {
     // When time expires, auto-submit. If not all answered, enforce fail due to timeout on UI
     if (!quiz || result) return;
-    handleAutoSubmit({ timedOut: true });
+    handleAutoSubmit();
   }, [handleAutoSubmit, quiz, result]);
 
   // Initialize and run countdown when quiz data is loaded
@@ -283,16 +232,30 @@ const QuizViewer = ({ quizId, quizData, onQuizPassed, onSpecialRedirect, lessonI
   };
 
   const handleRetry = () => {
-    // Remove quiz from failed list
-    const failedQuizzes = JSON.parse(localStorage.getItem('failedQuizzes') || '[]');
+    const failedQuizzes = JSON.parse(
+      localStorage.getItem('failedQuizzes') || '[]'
+    );
+
     localStorage.setItem(
       'failedQuizzes',
       JSON.stringify(failedQuizzes.filter((id) => id !== quizId))
     );
 
-    setResult(null);
+    // Stop previous timer
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = null;
+    }
+
+    // Reset timer state
+    hasTimedOutRef.current = false;
+    quizEndTimeRef.current = null;
+    setRemainingTime(null);
+
+    // Reset quiz state
     setAnswers({});
     setStep(0);
+    setResult(null);
   };
 
   const handleStartFinalQuiz = () => {
@@ -308,7 +271,7 @@ const QuizViewer = ({ quizId, quizData, onQuizPassed, onSpecialRedirect, lessonI
     navigate('/my-courses');
   };
 
-   if (!quiz && !result) return <CircularProgress />;
+  if (!quiz && !result) return <CircularProgress />;
 
   // Handle "not_ready" state - when quiz prerequisites aren't met
   if (quizData?.type === 'not_ready') {
@@ -381,10 +344,7 @@ const QuizViewer = ({ quizId, quizData, onQuizPassed, onSpecialRedirect, lessonI
 
   if (result) {
     const timedOut = result.reason === 'TIMEOUT';
-    // Example values for demonstration; replace with real values if available
-    
     const userScore = result.score ?? 0;
-    
     const isPassed = result.is_passed;
 
     return (
@@ -462,13 +422,10 @@ const QuizViewer = ({ quizId, quizData, onQuizPassed, onSpecialRedirect, lessonI
               py: 2,
             }}
           >
-            
-           
             <Box sx={{ textAlign: 'center', flex: 1 }}>
               <Typography variant="h5" fontWeight={700} sx={{ color: theme.palette.text.primary }}>{userScore}%</Typography>
               <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>Your Score</Typography>
             </Box>
-            
           </Box>
           <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center', mt: 2 }}>
             {isPassed ? (

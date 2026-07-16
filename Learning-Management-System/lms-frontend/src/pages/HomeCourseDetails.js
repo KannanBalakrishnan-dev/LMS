@@ -1,174 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Button, Container, Skeleton, Stack, Typography } from '@mui/material';
-import { Link as RouterLink, useLocation } from 'react-router-dom';
+import { Link as RouterLink, useParams } from 'react-router-dom';
 import api from '../api';
 import PublicSiteHeader, { PUBLIC_SITE_HEADER_HEIGHT } from '../components/public/PublicSiteHeader';
 import { createPublicSiteHeaderNavItems } from '../components/public/publicSiteNav';
-import courseImage3 from '../assets/pexels-olya-kobruseva-5561923 1 - Copy.png';
-import courseImage4 from '../assets/pexels-shane-aldendorff-924676 1.png';
-import courseImage5 from '../assets/pexels-brett-sayles-2881232 1.png';
-import courseImage6 from '../assets/pexels-picjumbocom-196645 (1) 1.png';
 
 const HOME_FONT_FAMILY = '"Poppins", sans-serif';
 const PAGE_WIDTH = 1400;
 const CONTENT_WIDTH = 1320;
 const DEFAULT_COURSE_IMAGE = '/image-001.png';
-const DIGITAL_MARKETING_IMAGE = '/image-002.png';
 
 const publicHeaderNavItems = createPublicSiteHeaderNavItems();
-
-const courseDetailsByTitle = {
-  'Full Stack': {
-    title: 'Full Stack',
-    subtitle: 'Build end-to-end Web applications from scratch',
-    image: DEFAULT_COURSE_IMAGE,
-    about: [
-      'Full stack development is closely associated with web applications and the internet because it involves building complete, end-to-end solutions for the web. A full stack developer works on both the front end (what users see) and the back end (server, database, and application logic) to create fully functional websites and applications.',
-      'Learn how to design engaging user interfaces, develop robust server-side logic, and manage databases - all in one complete skill set.',
-    ],
-    benefitsLead: 'The benefits of learning Full stack:',
-    points: [
-      'End-to-end development skills',
-      'High career demand & opportunities',
-      'Faster project delivery & innovation',
-    ],
-  },
-  'Digital Marketing': {
-    title: 'Digital Marketing',
-    subtitle: 'Learn strategies and campaign management',
-    image: DIGITAL_MARKETING_IMAGE,
-    about: [
-      'Digital marketing is all about promoting products or services using the internet. It helps businesses reach the right audience through platforms people use every day, such as Google, social media, websites, and email.',
-      'You will learn how to create engaging content, improve website visibility on search engines, manage social media pages, run online advertisements, and understand performance data to see what works best.',
-    ],
-    benefitsLead: 'The benefits of learning Digital Marketing:',
-    points: [
-      'High career opportunities',
-      'Cost-effective and measurable marketing skills',
-      'Promote brands and see real results',
-    ],
-  },
-  'Data Analytics': {
-    title: 'Data Analytics',
-    subtitle: 'Build insights with data and reporting',
-    image: courseImage3,
-    about: [
-      'Data analytics is all about collecting, understanding, and using data to make better decisions. It helps businesses discover patterns, track performance, and solve problems by analyzing information from everyday sources like websites, sales records, customer behavior, and applications.',
-      'You will learn how to clean and organize data, use tools like Excel and analytics software, create charts and dashboards, and interpret results to understand what is working and what needs improvement.',
-    ],
-    benefitsLead: 'The benefits of learning Data Analytics:',
-    points: [
-      'Smarter decision-making',
-      'Ability to spot trends and solve problems',
-      'Strong career opportunities',
-    ],
-  },
-  'AI/ML': {
-    title: 'AI | ML',
-    subtitle: 'Learn artificial intelligence and machine learning fundamentals',
-    image: courseImage4,
-    about: [
-      'Artificial intelligence and machine learning are about building systems that can learn from data, recognize patterns, and make decisions with minimal human effort. These technologies help businesses automate tasks, personalize experiences, and solve complex problems across industries.',
-      'You will learn the basics of data handling, algorithms, and models, explore programming concepts, train simple machine-learning models, and evaluate their performance step by step.',
-    ],
-    benefitsLead: 'The benefits of learning AI/ML:',
-    points: [
-      'Automation and efficiency',
-      'Solve real-world problems',
-      'High-demand career opportunities',
-    ],
-  },
-  'Cloud Computing': {
-    title: 'Cloud Computing',
-    subtitle: 'Learn cloud infrastructure and services',
-    image: courseImage5,
-    about: [
-      'Cloud computing is all about delivering resources like servers, storage, databases, and applications over the internet instead of relying only on local machines. It helps teams scale quickly, collaborate remotely, and manage modern digital systems efficiently.',
-      'You will learn cloud platforms, storage and networking concepts, virtualization, application deployment, and resource management practices that support secure and flexible infrastructure.',
-    ],
-    benefitsLead: 'The benefits of learning Cloud Computing:',
-    points: [
-      'Automation and efficiency',
-      'Solve real-world problems',
-      'Boost career opportunities',
-    ],
-  },
-  'UI/UX Design': {
-    title: 'UI / UX Design',
-    subtitle: 'Learn interface and experience design fundamentals',
-    image: courseImage6,
-    about: [
-      'UI/UX design is about creating digital products that are easy to use, visually appealing, and enjoyable for people. It focuses on understanding how users interact with websites and apps, then shaping those experiences to feel clear, intuitive, and helpful.',
-      'You will learn user research, layout planning, wireframing, prototyping, visual design choices, and testing methods that help create thoughtful, user-centered digital experiences.',
-    ],
-    benefitsLead: 'The benefits of learning UI/UX Design:',
-    points: [
-      'Create better user experiences',
-      'High demand across industries',
-      'Improve problem-solving and creativity',
-    ],
-  },
-  Cybersecurity: {
-    title: 'Cybersecurity',
-    subtitle: 'Protect systems, networks, and data from threats',
-    image: DEFAULT_COURSE_IMAGE,
-    about: [
-      'Cybersecurity is about protecting systems, networks, and data from unauthorized access, attacks, and damage. As more business happens online, organizations need people who can identify vulnerabilities and respond to threats before they cause harm.',
-      'You will learn network security fundamentals, common attack techniques, risk assessment, secure coding practices, and how to use tools that monitor and defend digital infrastructure.',
-    ],
-    benefitsLead: 'The benefits of learning Cybersecurity:',
-    points: [
-      'Critical, high-demand skill set',
-      'Protect organizations from real threats',
-      'Strong long-term career stability',
-    ],
-  },
-  'DevOps & Automation': {
-    title: 'DevOps & Automation',
-    subtitle: 'Streamline development, deployment, and operations',
-    image: DIGITAL_MARKETING_IMAGE,
-    about: [
-      'DevOps brings development and operations teams together to build, test, and release software faster and more reliably. It relies heavily on automation, continuous integration, and continuous delivery to reduce manual work and errors.',
-      'You will learn version control workflows, CI/CD pipelines, containerization, infrastructure as code, and monitoring practices used to keep applications running smoothly at scale.',
-    ],
-    benefitsLead: 'The benefits of learning DevOps & Automation:',
-    points: [
-      'Faster, more reliable software delivery',
-      'In-demand skills across every tech industry',
-      'Better collaboration between teams',
-    ],
-  },
-  'Mobile App Development': {
-    title: 'Mobile App Development',
-    subtitle: 'Build native and cross-platform mobile applications',
-    image: courseImage3,
-    about: [
-      'Mobile app development focuses on building applications for smartphones and tablets. It covers both native development for specific platforms and cross-platform frameworks that let you build for multiple platforms from a single codebase.',
-      'You will learn UI design for mobile, working with APIs, local storage, app performance, and how to publish apps to app stores.',
-    ],
-    benefitsLead: 'The benefits of learning Mobile App Development:',
-    points: [
-      'Build for a massive, growing mobile audience',
-      'High demand for cross-platform skills',
-      'Turn ideas into published, usable apps',
-    ],
-  },
-  'Product Management': {
-    title: 'Product Management',
-    subtitle: 'Learn to plan, prioritize, and ship successful products',
-    image: courseImage4,
-    about: [
-      'Product management sits at the intersection of business, technology, and user experience. Product managers decide what gets built, why, and in what order, working closely with design, engineering, and stakeholders.',
-      'You will learn how to gather requirements, prioritize a roadmap, write specs, run experiments, and use data to guide product decisions from idea to launch.',
-    ],
-    benefitsLead: 'The benefits of learning Product Management:',
-    points: [
-      'Bridge business goals and technical execution',
-      'Highly transferable, in-demand skill',
-      'Direct impact on product and company success',
-    ],
-  },
-};
 
 const toDynamicCourseDetails = (course) => {
   const description = (course?.description || '').trim();
@@ -283,19 +125,16 @@ const CourseNotFound = () => (
 );
 
 const HomeCourseDetails = () => {
-  const location = useLocation();
+  const { courseId } = useParams();
   const [dynamicCourse, setDynamicCourse] = useState(null);
   const [isCourseLoading, setIsCourseLoading] = useState(false);
   const [fetchFailed, setFetchFailed] = useState(false);
-  const searchParams = new URLSearchParams(location.search);
-  const courseParam = searchParams.get('course');
-  const courseIdParam = searchParams.get('courseId');
 
   useEffect(() => {
     let isMounted = true;
 
     const fetchDynamicCourse = async () => {
-      if (!courseIdParam) {
+      if (!courseId) {
         setDynamicCourse(null);
         setFetchFailed(false);
         return;
@@ -304,7 +143,7 @@ const HomeCourseDetails = () => {
       setIsCourseLoading(true);
       setFetchFailed(false);
       try {
-        const response = await api.get(`/courses/${courseIdParam}/`);
+        const response = await api.get(`/courses/${courseId}/`);
         if (isMounted) {
           setDynamicCourse(toDynamicCourseDetails(response.data));
         }
@@ -326,30 +165,22 @@ const HomeCourseDetails = () => {
     return () => {
       isMounted = false;
     };
-  }, [courseIdParam]);
+  }, [courseId]);
 
   // Resolve which course(s) to render, with an explicit "not found" state
   // instead of silently falling back to an unrelated course or dumping every course.
   let selectedCourse = null;
   let courseNotFound = false;
 
-  if (courseIdParam) {
+  if (courseId) {
     if (dynamicCourse) {
       selectedCourse = dynamicCourse;
     } else if (fetchFailed && !isCourseLoading) {
       courseNotFound = true;
     }
-  } else if (courseParam) {
-    if (courseDetailsByTitle[courseParam]) {
-      selectedCourse = courseDetailsByTitle[courseParam];
-    } else {
-      courseNotFound = true;
-    }
   }
 
-  const coursesToRender = selectedCourse
-    ? [selectedCourse]
-    : (!courseIdParam && !courseParam ? Object.values(courseDetailsByTitle) : []);
+  const coursesToRender = selectedCourse ? [selectedCourse] : [];
 
   return (
     <Box
