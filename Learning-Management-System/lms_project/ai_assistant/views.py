@@ -1,69 +1,57 @@
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import json
+import requests
 import os
 
-from google import genai
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+@csrf_exempt
+def ai_chat(request):
 
+    if request.method == "POST":
 
-client = genai.Client(
-    api_key=os.getenv("GEMINI_API_KEY")
-)
+        data = json.loads(request.body)
+        question = data.get("question", "")
 
+        OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
-class AssistantAskView(APIView):
-
-    permission_classes = [
-        IsAuthenticated
-    ]
-
-
-    def post(self, request):
-
-        try:
-
-            question = request.data.get(
-                "question",
-                ""
-            ).strip()
-
-
-            if not question:
-
-                return Response(
+        response = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": "openai/gpt-4o-mini",
+                "messages": [
                     {
-                        "answer":
-                        "Please enter a question."
+                        "role": "system",
+                        "content": "You are an AI Tutor. Help students."
                     },
-                    status=200
-                )
+                    {
+                        "role": "user",
+                        "content": question
+                    }
+                ]
+            }
+        )
 
+        result = response.json()
 
-            response = client.models.generate_content(
-                model="gemini-2.0-flash-lite",
-                contents=question
+        print("OPENROUTER RESPONSE:", result)   # add this
+
+        if "choices" in result:
+            answer = result["choices"][0]["message"]["content"]
+        else:
+            answer = result.get(
+                "error",
+                "OpenRouter API failed"
             )
 
+        return JsonResponse({
+            "answer": answer
+        })
 
-            return Response(
-                {
-                    "answer": response.text
-                }
-            )
-
-
-        except Exception as e:
-
-            print(
-                "AI ERROR:",
-                e
-            )
-
-            return Response(
-                {
-                    "answer":
-                    "AI Tutor is busy right now. Please try again after some time."
-                },
-                status=200
-            )
+    return JsonResponse({
+        "error": "POST request required"
+    })

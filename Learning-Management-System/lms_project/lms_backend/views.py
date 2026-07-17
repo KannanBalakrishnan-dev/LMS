@@ -1,4 +1,4 @@
-from google import genai
+from services.openrouter_service import ask_openrouter
 from rest_framework import viewsets, status, generics
 from rest_framework.decorators import action, api_view, authentication_classes, permission_classes
 from rest_framework.response import Response
@@ -41,6 +41,16 @@ from rest_framework.response import Response
 from rest_framework import status
 from PyPDF2 import PdfReader, PdfWriter
 
+# ============================
+# FIX 2: These were previously left commented out at the bottom of the file,
+# which caused NameError at runtime for UserProfileView, UserSettingsView,
+# SignOutAllDevicesView, and ChangePasswordView. Moved up and uncommented.
+# Requires 'rest_framework_simplejwt.token_blacklist' in INSTALLED_APPS
+# and BLACKLIST_AFTER_ROTATION=True in SIMPLE_JWT settings.
+# ============================
+from django.contrib.auth.password_validation import validate_password
+from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
+
 
 from .models import Course, Enrollment
 from django.conf import settings
@@ -64,15 +74,14 @@ from django.db.models.deletion import ProtectedError
 # GEMINI AI ASSISTANT API
 # ==============================
 
-client = genai.Client(
-    api_key=os.getenv("GEMINI_API_KEY")
-)
-
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def ai_chat(request):
-
+    # FIX 1: Corrected indentation. The original had `response = ask_openrouter(...)`
+    # indented with 3 spaces instead of matching the surrounding block (8 spaces),
+    # which caused an IndentationError / SyntaxError on import, breaking the
+    # entire module (nothing else in this file could load).
     try:
         message = request.data.get("message")
 
@@ -84,10 +93,8 @@ def ai_chat(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=f"""
+        response = ask_openrouter(
+            f"""
             You are an AI Assistant for LMS Platform.
 
             Help:
@@ -101,21 +108,19 @@ def ai_chat(request):
             """
         )
 
-
         return Response(
             {
                 "success": True,
-                "reply": response.text
+                "reply": response
             }
         )
-
 
     except Exception as e:
 
         return Response(
             {
-                "success":False,
-                "error":str(e)
+                "success": False,
+                "error": str(e)
             },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
@@ -232,7 +237,8 @@ from .serializers import (
     UserSerializer, TeamSerializer, CategorySerializer,
     CourseSerializer, VideoSerializer, QuizSerializer,
     QuestionSerializer, EnrollmentSerializer, QuizAttemptSerializer,
-    VideoProgressSerializer, CertificateSerializer, CourseListSerializer, TeamDetailSerializer, StudentDashboardSerializer, AdminDashboardSerializer, NotificationSerializer, FeedbackSerializer
+    VideoProgressSerializer, CertificateSerializer, CourseListSerializer, TeamDetailSerializer, StudentDashboardSerializer, AdminDashboardSerializer, NotificationSerializer, FeedbackSerializer,
+    UserProfileSerializer, UserSettingsSerializer,
 )
 from .utils import (
     calculate_course_progress, get_user_analytics,
@@ -585,7 +591,7 @@ def google_login(request):
 
 # ==================== Analytics Endpoints ====================
 
-# FIX 1: Added @permission_classes([IsAuthenticated]) to all three methods
+# FIX: Added @permission_classes([IsAuthenticated]) to all three methods
 @api_view(['GET', 'PUT', 'POST', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def assign_courses_team(request, team_id):
@@ -736,7 +742,7 @@ def get_newly_assigned_courses(request):
 def student_credit_points(request):
     user = request.user
 
-    # FIX 3: Consistent reward constants (was 80 in leaderboard, now 50 everywhere)
+    # FIX: Consistent reward constants (was 80 in leaderboard, now 50 everywhere)
     COURSE_COMPLETION_POINTS = 50
     QUIZ_BONUS_THRESHOLD = 90
     QUIZ_BONUS_POINTS = 20
@@ -872,7 +878,7 @@ def student_credit_points(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def other_students_credit_points_ascending(request):
-    # FIX 3: Consistent constant (was 80, now matches student_credit_points = 50)
+    # FIX: Consistent constant (was 80, now matches student_credit_points = 50)
     COURSE_COMPLETION_POINTS = 50
     QUIZ_BONUS_THRESHOLD = 90
     QUIZ_BONUS_POINTS = 20
@@ -946,7 +952,6 @@ def other_students_credit_points_ascending(request):
         )
         activity_days.update(_get_login_reward_activity_days(target_user, since=first_credit_activity_at))
 
-        # FIX 3: Was hardcoded to 0, now correctly calculated
         daily_login_points = len(activity_days) * DAILY_LOGIN_BASE_POINTS
 
         streak_days = 0
@@ -1999,7 +2004,7 @@ class QuizViewSet(viewsets.ModelViewSet):
         return Response({'message': 'Quiz soft deleted'}, status=204)
 
 # ==================== Enrollment Views ====================
-# FIX 2: Changed ReadOnlyModelViewSet → ModelViewSet so destroy() is actually registered
+# FIX: Changed ReadOnlyModelViewSet -> ModelViewSet so destroy() is actually registered
 class EnrollmentViewSet(viewsets.ModelViewSet):
     serializer_class = EnrollmentSerializer
     permission_classes = [IsAuthenticated]
@@ -3338,7 +3343,6 @@ def resolve_request(request, request_id):
             )
 
         else:
-            # FIX 4: Flattened the approve/reject structure to be explicit
             model_map = {
                 'DELETE_COURSE': Course,
                 'DELETE_VIDEO': Video,
@@ -3497,7 +3501,6 @@ def deleted_actions(request):
             print(f"Error processing soft-deleted courses: {str(e)}")
 
         try:
-            # FIX 5: Include UNDONE requests too so they can be permanently deleted
             deleted_requests = Request.objects.filter(
                 status__in=['APPROVED', 'UNDONE']
             ).select_related('requested_by', 'resolved_by').order_by('-created_at')
@@ -3565,7 +3568,6 @@ def permanent_delete_request(request, request_id):
             status=status.HTTP_404_NOT_FOUND
         )
 
-    # FIX 5: Allow permanent delete for both APPROVED and UNDONE statuses
     if delete_request.status not in ('APPROVED', 'UNDONE'):
         return Response(
             {"error": "Only approved or undone requests can be permanently deleted"},
@@ -3743,10 +3745,12 @@ def permanent_delete_team(request, team_id):
             status=status.HTTP_403_FORBIDDEN
         )
 
+    # FIX 3: Was `Team.objects.get(id=team_id)` with no is_deleted filter, which
+    # let admins permanently delete ACTIVE (non-soft-deleted) teams directly,
+    # bypassing the soft-delete/undo safety flow used by every other
+    # permanent_delete_* view in this file. Now consistent with the others.
     try:
-       team_to_delete = Team.objects.get(
-    id=team_id
-)
+        team_to_delete = Team.objects.get(id=team_id, is_deleted=True)
     except Team.DoesNotExist:
         return Response(
             {"error": "Soft-deleted team not found"},
@@ -4025,20 +4029,6 @@ def get_student_feedback(request):
             {"error": f"Failed to fetch feedback: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-        
-        
-        
-        
-        # ============================
-# Add these imports near the top of views.py if not already present
-# ============================
-# from rest_framework.views import APIView
-# from rest_framework.permissions import IsAuthenticated
-# from rest_framework.response import Response
-# from django.utils import timezone
-# from django.contrib.auth.password_validation import validate_password
-# from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
-# from .serializers import UserProfileSerializer, UserSettingsSerializer
 
 
 # ============================
@@ -4091,9 +4081,6 @@ class SignOutAllDevicesView(APIView):
 # ============================
 # Change Password — POST /auth/change-password/
 # Stamps password_updated_at so UserProfile.js / UserSettings.js can display it.
-# NOTE: if you already have a working change-password view elsewhere in this
-# file, delete this one and instead just add the two lines marked below
-# to your existing view.
 # ============================
 class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
@@ -4118,8 +4105,6 @@ class ChangePasswordView(APIView):
             return Response({'detail': list(e.messages)}, status=400)
 
         user.set_password(new_password)
-        # --- these two lines are the part to add to an existing view ---
         user.password_updated_at = timezone.now()
         user.save(update_fields=['password', 'password_updated_at'])
-        # -----------------------------------------------------------------
         return Response({'detail': 'Password changed successfully.'}, status=200)
