@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include
+from django.http import JsonResponse
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -74,6 +75,11 @@ from lms_backend.views import (
     CustomTokenObtainPairView,         
 )
 
+
+def home(request):
+    return JsonResponse({"status": "ok", "service": "LMS API"})
+
+
 # Initialize the router
 router = DefaultRouter()
 router.register(r'users', UserViewSet)
@@ -86,6 +92,8 @@ router.register(r'enrollments', EnrollmentViewSet, basename='enrollment')
 router.register(r'certificates', CertificateViewSet, basename='certificate')
 
 urlpatterns = [
+    path('', home, name='home'),
+
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
     path('api/student/dashboard/', student_dashboard, name='student-dashboard'),
@@ -212,4 +220,3 @@ urlpatterns = [
     path('api/feedback/student/', get_student_feedback, name='get-student-feedback'),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-
