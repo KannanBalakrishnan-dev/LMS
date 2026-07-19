@@ -549,10 +549,10 @@ const CourseCatalog = () => {
         return String(status.progress ?? '').trim().toUpperCase() === 'PENDING_APPROVAL';
     };
 
-    const isActiveSelectionEnrollment = (status) => {
-        if (!status) return false;
-        return isEnrolledEnrollment(status) && !isCompletedEnrollment(status);
-    };
+    // const isActiveSelectionEnrollment = (status) => {
+    //     if (!status) return false;
+    //     return isEnrolledEnrollment(status) && !isCompletedEnrollment(status);
+    // };
 
     // const activeEnrollmentCount = useMemo(() => {
     //     return (courses || []).filter((course) => {
