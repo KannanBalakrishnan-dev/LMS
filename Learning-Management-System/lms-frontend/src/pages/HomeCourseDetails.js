@@ -7,6 +7,8 @@ import { createPublicSiteHeaderNavItems } from '../components/public/publicSiteN
 
 const HOME_FONT_FAMILY = '"Poppins", sans-serif';
 const PAGE_WIDTH = 1400;
+
+
 const CONTENT_WIDTH = 1320;
 const DEFAULT_COURSE_IMAGE = '/image-001.png';
 
