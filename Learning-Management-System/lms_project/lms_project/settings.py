@@ -62,7 +62,7 @@ if DEBUG:
     # WARNING: insecure — only for development/debugging
     ALLOWED_HOSTS = ['*']
 else:
-    _default_allowed = "localhost,127.0.0.1,vdart-lms.netlify.app"
+    _default_allowed = "localhost,127.0.0.1,vdart-lms.netlify.app,lms-ten-delta.vercel.app"
     env_allowed = config('ALLOWED_HOSTS', default=_default_allowed)
     ALLOWED_HOSTS = [h.strip() for h in env_allowed.split(',') if h.strip()]
 
@@ -193,13 +193,21 @@ GOOGLE_OAUTH_CLIENT_IDS = [
 
 # ---- CORS & CSRF ----
 # When credentials are used, keep CORS_ALLOW_ALL_ORIGINS = False and supply explicit origins.
-# ---- CORS & CSRF ----
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
+    # Frontend (Vercel)
+    "https://lms-ten-delta.vercel.app",
+
+    # Legacy / other frontends
     "https://vdart-lms.netlify.app",
+
+    # Backend (optional)
     "https://learning-management-system-4i6f.onrender.com",
+    "https://lms-1-5q1a.onrender.com",
+
+    # Local Development
     "http://localhost:3000",
     "http://localhost:3001",
     "http://127.0.0.1:3000",
@@ -229,8 +237,10 @@ CORS_ALLOWED_HEADERS = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
+    "https://lms-ten-delta.vercel.app",
     "https://vdart-lms.netlify.app",
     "https://learning-management-system-4i6f.onrender.com",
+    "https://lms-1-5q1a.onrender.com",
     "http://localhost:3000",
     "http://localhost:3001",
     "http://127.0.0.1:3000",
@@ -310,233 +320,3 @@ LOGGING = {
         'lms_backend': {'handlers': ['console', 'file'], 'level': 'INFO',},
     },
 }
-
-# 
-# 
-# import os
-# from pathlib import Path
-# from datetime import timedelta
-# from decouple import config
-
-# # Build paths inside the project like this: BASE_DIR / 'subdir'.
-# BASE_DIR = Path(__file__).resolve().parent.parent
-
-# # SECURITY WARNING: keep the secret key used in production secret!
-# SECRET_KEY = 'django-insecure-5l%ku+0k$!dabai!b#y$d7j+80y!wg)=^-28un@_lmwr#xw%)('
-
-# # SECURITY WARNING: don't run with debug turned on in production!
-# DEBUG = True
-
-# ALLOWED_HOSTS = ['localhost', '127.0.0.1']
-# # ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='learning-management-system-4i6f.onrender.com,localhost,127.0.0.1').split(',')
-
-
-# # Application definition
-# INSTALLED_APPS = [
-#     'django.contrib.admin',
-#     'django.contrib.auth',
-#     'django.contrib.contenttypes',
-#     'django.contrib.sessions',
-#     'django.contrib.messages',
-#     'django.contrib.staticfiles',
-#     'rest_framework',
-#     'corsheaders',
-#     'lms_backend',
-# ]
-
-# MIDDLEWARE = [
-#     'django.middleware.security.SecurityMiddleware',
-#     'django.contrib.sessions.middleware.SessionMiddleware',
-#     'corsheaders.middleware.CorsMiddleware',
-#     'django.middleware.common.CommonMiddleware',
-#     'django.middleware.csrf.CsrfViewMiddleware',
-#     'django.contrib.auth.middleware.AuthenticationMiddleware',
-#     'django.contrib.messages.middleware.MessageMiddleware',
-#     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-# ]
-
-# ROOT_URLCONF = 'lms_project.urls'
-
-# TEMPLATES = [
-#     {
-#         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-#         'DIRS': [],
-#         'APP_DIRS': True,
-#         'OPTIONS': {
-#             'context_processors': [
-#                 'django.template.context_processors.debug',
-#                 'django.template.context_processors.request',
-#                 'django.contrib.auth.context_processors.auth',
-#                 'django.contrib.messages.context_processors.messages',
-#             ],
-#         },
-#     },
-# ]
-
-# WSGI_APPLICATION = 'lms_project.wsgi.application'
-
-# # Database
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
-
-# # Password validation
-# AUTH_PASSWORD_VALIDATORS = [
-#     {
-#         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-#     },
-#     {
-#         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-#     },
-#     {
-#         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-#     },
-#     {
-#         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-#     },
-# ]
-
-# # Custom user model
-# AUTH_USER_MODEL = 'lms_backend.User'
-
-# # Internationalization
-# LANGUAGE_CODE = 'en-us'
-# TIME_ZONE = 'UTC'
-# USE_I18N = True
-# USE_TZ = True
-
-# # Static files (CSS, JavaScript, Images)
-# STATIC_URL = 'static/'
-# STATIC_ROOT = os.path.join(BASE_DIR, 'static')
-
-# # Media files
-# MEDIA_URL = '/media/'
-# MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
-# # Default primary key field type
-# DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-# # REST Framework settings
-# REST_FRAMEWORK = {
-#     'DEFAULT_AUTHENTICATION_CLASSES': (
-#         'rest_framework.authentication.SessionAuthentication',
-#         'rest_framework_simplejwt.authentication.JWTAuthentication',
-#     ),
-#     'DEFAULT_PERMISSION_CLASSES': [
-#         'rest_framework.permissions.AllowAny',  # Make sure this is set
-#     ],
-# }
-
-# # JWT Settings
-# SIMPLE_JWT = {
-#     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
-#     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
-#     'ROTATE_REFRESH_TOKENS': True,
-#     'AUTH_HEADER_TYPES': ('Bearer',),
-#     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
-# }
-
-# # CORS settings
-# CORS_ALLOW_ALL_ORIGINS = True  # For development only
-# CORS_ALLOW_CREDENTIALS = True
-# CORS_ALLOWED_ORIGINS = [
-#     "http://localhost:3000"
-# ]
-# CORS_ALLOWED_METHODS = [
-#     'GET',
-#     'POST',
-#     'PUT',
-#     'PATCH',
-#     'DELETE',
-#     'OPTIONS',
-# ]
-# CORS_ALLOWED_HEADERS = [
-#     'accept',
-#     'accept-encoding',
-#     'authorization',
-#     'content-type',
-#     'dnt',
-#     'origin',
-#     'user-agent',
-#     'x-csrftoken',
-#     'x-requested-with',
-# ]
-
-# # CSRF settings
-# CSRF_TRUSTED_ORIGINS = [
-#     "http://localhost:3000",
-#     "http://127.0.0.1:3000",
-# ]
-
-# # Exempt API endpoints from CSRF protection
-# CSRF_EXEMPT_URLS = [
-#     '/api/send-otp/',
-#     '/api/verify-otp/',
-#     '/api/token/',
-#     '/api/users/',
-# ]
-
-# # Email settings
-# # For production: Use SMTP
-# try:
-#     EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
-#     EMAIL_HOST = config('EMAIL_HOST', default='')
-#     EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
-#     EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
-#     EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
-#     EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
-#     DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@lms.com')
-    
-#     # If SMTP settings are not properly configured, fall back to console backend
-#     if not EMAIL_HOST or not EMAIL_HOST_USER or not EMAIL_HOST_PASSWORD:
-#         EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-#         print("Warning: SMTP settings not properly configured. Using console email backend.")
-        
-# except Exception as e:
-#     # Fallback to console backend if there are any configuration issues
-#     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-#     print(f"Warning: Email configuration error: {e}. Using console email backend.")
-# # OTP Settings
-# OTP_EXPIRY_MINUTES = 5  # OTP expires in 5 minutes
-# OTP_LENGTH = 6  # 6-digit OTP
-
-# # Logging Configuration
-# LOGGING = {
-#     'version': 1,
-#     'disable_existing_loggers': False,
-#     'formatters': {
-#         'verbose': {
-#             'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
-#             'style': '{',
-#         },
-#         'simple': {
-#             'format': '{levelname} {message}',
-#             'style': '{',
-#         },
-#     },
-#     'handlers': {
-#         'console': {
-#             'class': 'logging.StreamHandler',
-#             'formatter': 'verbose',
-#         },
-#         'file': {
-#             'class': 'logging.FileHandler',
-#             'filename': 'lms.log',
-#             'formatter': 'verbose',
-#         },
-#     },
-#     'loggers': {
-#         'django': {
-#             'handlers': ['console', 'file'],
-#             'level': 'INFO',
-#         },
-#         'lms_backend': {
-#             'handlers': ['console', 'file'],
-#             'level': 'INFO',
-#         },
-#     },
-# }
-

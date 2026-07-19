@@ -5,7 +5,8 @@ const API_BASE_URL =
     process.env.REACT_APP_API_URL ||
     (process.env.NODE_ENV === 'development'
         ? 'http://localhost:8000/api' // Local development
-        : 'https://learning-management-system-4i6f.onrender.com/api'); // Production
+        : 'https://lms-1-5q1a.onrender.com/api' // Production
+    );
 
 const api = axios.create({
     baseURL: API_BASE_URL,
