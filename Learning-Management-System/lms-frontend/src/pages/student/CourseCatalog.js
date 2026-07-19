@@ -554,16 +554,16 @@ const CourseCatalog = () => {
         return isEnrolledEnrollment(status) && !isCompletedEnrollment(status);
     };
 
-    const activeEnrollmentCount = useMemo(() => {
-        return (courses || []).filter((course) => {
-            if (!course) return false;
-            const status = enrollmentStatus[course.id];
-            if (!isActiveSelectionEnrollment(status)) return false;
-            if (isCompletedEnrollment(status)) return false;
-            return true;
-        }).length;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [courses, enrollmentStatus]);
+    // const activeEnrollmentCount = useMemo(() => {
+    //     return (courses || []).filter((course) => {
+    //         if (!course) return false;
+    //         const status = enrollmentStatus[course.id];
+    //         if (!isActiveSelectionEnrollment(status)) return false;
+    //         if (isCompletedEnrollment(status)) return false;
+    //         return true;
+    //     }).length;
+    // // eslint-disable-next-line react-hooks/exhaustive-deps
+    // }, [courses, enrollmentStatus]);
 
     const selectedStatus = selectedCourse ? enrollmentStatus[selectedCourse.id] : null;
     const selectedIsCompleted = isCompletedEnrollment(selectedStatus);
